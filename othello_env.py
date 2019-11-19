@@ -162,15 +162,24 @@ class Board:
         return state
 
 
-class Othello:
+class OthelloGame:
 
     def __init__(self, interactive=True, show_steps=False):
+        self.board = Board()
         self.player_tile = 'X'
         self.computer_tile = 'O'
         self.player_score = 0
         self.computer_score = 0
         self.interactive = interactive
         self.stepper = show_steps
+
+    def reset(self):
+        self.board.reset()
+        self.player_score = 0
+        self.computer_score = 0
+
+    def get_state(self):
+        return self.board.list_to_array()
 
     def choose_player_tile(self):
         # Lets the player type which tile they want to be.
@@ -188,7 +197,7 @@ class Othello:
 
         self.player_tile, self.computer_tile = assigned_tiles
 
-    def get_player_move(self, board):
+    def get_player_move(self):
         # Let the player type in their move given a board state.
         # Returns the move as [x, y] (or returns the strings 'hints' or 'quit')
         valid_digits = '1 2 3 4 5 6 7 8'.split()
@@ -203,7 +212,7 @@ class Othello:
             if len(move) == 2 and move[0] in valid_digits and move[1] in valid_digits:
                 x = int(move[0]) - 1
                 y = int(move[1]) - 1
-                if not board.is_valid_move(self.player_tile, x, y):
+                if not self.board.is_valid_move(self.player_tile, x, y):
                     continue
                 else:
                     break
@@ -213,10 +222,10 @@ class Othello:
 
         return [x, y]
 
-    def get_computer_move(self, board):
+    def get_computer_move(self):
         # Given a board and the computer's tile, determine where to
         # move and return that move as a [x, y] list.
-        possible_moves = board.get_valid_moves(self.computer_tile)
+        possible_moves = self.board.get_valid_moves(self.computer_tile)
 
         # randomize the order of the possible moves
         random.shuffle(possible_moves)
@@ -230,7 +239,7 @@ class Othello:
         best_score = -1
         best_move = []
         for x, y in possible_moves:
-            dupe_board = board.copy()
+            dupe_board = self.board.copy()
             dupe_board.make_move(self.computer_tile, x, y)
             score = dupe_board.get_score()[self.computer_tile]
             if score > best_score:
@@ -238,9 +247,9 @@ class Othello:
                 best_score = score
         return best_move
     
-    def show_points(self, board):
+    def show_points(self):
         # Prints out the current score.
-        scores = board.get_score()
+        scores = self.board.get_score()
         print('You have %s points. The computer has %s points.' % (scores[self.player_tile], scores[self.computer_tile]))
 
     def calculate_reward(self, result):
@@ -251,7 +260,7 @@ class Othello:
             self.run_interactive()
         else:
             # Reset the board and game.
-            main_board = Board()
+            self.board.reset()
             self.choose_player_tile()
             showHints = True
             if self.player_tile == 'X':
@@ -259,16 +268,19 @@ class Othello:
             else:
                 turn = 'computer'
 
-    def step(self, board, action):
+    def step(self, action):
         # TODO - make a function that takes a player's action and returns the next state and reward
+        #        and also indicates whether a terminal state is reached
         reward = 0
-        next_board = board.copy()    # TODO - update board based on action
+        done = False     # indicates terminal state
+        next_board = self.board.copy()    # TODO - update board based on action
         # option to display visuals while learning how to train
         if self.stepper:
             next_board.draw()
             print(next_board.list_to_array())
             print('Reward on step: {0}'.format(reward))
-        return reward, next_board
+        self.board = next_board
+        return reward, next_board, done
 
     def run_interactive(self):
         print('Welcome to Othello!')
@@ -348,5 +360,5 @@ class Othello:
 
 
 if __name__ == '__main__':
-    othello = Othello()
+    othello = OthelloGame()
     othello.start()
