@@ -9,7 +9,7 @@ def draw_board(board):
     HLINE = '  +-----+-----+-----+-----+-----+-----+-----+-----+'
     VLINE = '  |     |     |     |     |     |     |     |     |'
 
-    print('    1   2   3   4   5   6   7   8')
+    print('     1     2     3     4     5     6     7    x 8')
     print(HLINE)
     for y in range(8):
         print(VLINE)
@@ -192,15 +192,15 @@ def get_player_move(board, playerTile):
     DIGITS1TO8 = '1 2 3 4 5 6 7 8'.split()
     while True:
         print('Enter your move, or type quit to end the game, or hints to turn off/on hints.')
-        move = input().lower()
-        if move == 'quit':
+        player_move = input().lower()
+        if player_move == 'quit':
             return 'quit'
-        if move == 'hints':
+        if player_move == 'hints':
             return 'hints'
 
-        if len(move) == 2 and move[0] in DIGITS1TO8 and move[1] in DIGITS1TO8:
-            x = int(move[0]) - 1
-            y = int(move[1]) - 1
+        if len(player_move) == 2 and player_move[0] in DIGITS1TO8 and player_move[1] in DIGITS1TO8:
+            x = int(player_move[0]) - 1
+            y = int(player_move[1]) - 1
             if not is_valid_move(board, playerTile, x, y):
                 continue
             else:
