@@ -1,4 +1,4 @@
-from final_project.othello_env import Board, Othello
+from final_project.othello_env import Board, OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
