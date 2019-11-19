@@ -5,9 +5,26 @@ import sys
 import numpy as np
 
 
-class Othello:
+# static methods
+def is_on_board(x, y):
+    # Returns True if the coordinates are located on the board.
+    return 0 <= x <= 7 and 0 <= y <= 7
 
-    def draw_board(self, board):
+
+def is_on_corner(x, y):
+    # Returns True if the position is in one of the four corners.
+    return (x == 0 and y == 0) or (x == 7 and y == 0) or (x == 0 and y == 7) or (x == 7 and y == 7)
+
+
+class Board:
+
+    def __init__(self):
+        self.board = []
+        for _ in range(8):
+            self.board.append([' ']*8)
+        self.reset()
+
+    def draw(self):
 
         HLINE = '  +----+----+----+----+----+----+----+----+'
 
@@ -16,62 +33,54 @@ class Othello:
         for y in range(8):
             print(y + 1, end=' ')
             for x in range(8):
-                print('| %s' % (board[x][y]), end='  ')
+                print('| %s' % (self.board[x][y]), end='  ')
             print('|')
             print(HLINE)
 
-    def reset_board(self, board):
+    def reset(self):
         # Blanks out the board it is passed, except for the original starting position.
         for x in range(8):
             for y in range(8):
-                board[x][y] = ' '
+                self.board[x][y] = ' '
 
         # Starting pieces: X = black, O = white.
-        board[3][3] = 'X'
-        board[3][4] = 'O'
-        board[4][3] = 'O'
-        board[4][4] = 'X'
+        self.board[3][3] = 'X'
+        self.board[3][4] = 'O'
+        self.board[4][3] = 'O'
+        self.board[4][4] = 'X'
 
-    def get_new_board(self):
-        # Creates a brand new, blank board data structure.
-        board = []
-        for i in range(8):
-            board.append([' '] * 8)
-
-        return board
-
-    def is_valid_move(self, board, tile, xstart, ystart):
+    def is_valid_move(self, tile, xstart, ystart):
         # Returns False if the player's move on space xstart, ystart is invalid.
         # If it is a valid move, returns a list of spaces that would become the player's if they made a move here.
-        if board[xstart][ystart] != ' ' or not self.is_on_board(xstart, ystart):
+        if self.board[xstart][ystart] != ' ' or not is_on_board(xstart, ystart):
             return False
 
-        board[xstart][ystart] = tile  # temporarily set the tile on the board.
+        self.board[xstart][ystart] = tile  # temporarily set the tile on the board.
 
         if tile == 'X':
-            otherTile = 'O'
+            other_tile = 'O'
         else:
-            otherTile = 'X'
+            other_tile = 'X'
 
         tilesToFlip = []
         for xdirection, ydirection in [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]:
             x, y = xstart, ystart
             x += xdirection  # first step in the direction
             y += ydirection  # first step in the direction
-            if self.is_on_board(x, y) and board[x][y] == otherTile:
+            if is_on_board(x, y) and self.board[x][y] == other_tile:
                 # There is a piece belonging to the other player next to our piece.
                 x += xdirection
                 y += ydirection
-                if not self.is_on_board(x, y):
+                if not is_on_board(x, y):
                     continue
-                while board[x][y] == otherTile:
+                while self.board[x][y] == other_tile:
                     x += xdirection
                     y += ydirection
-                    if not self.is_on_board(x, y):  # break out of while loop, then continue in for loop
+                    if not is_on_board(x, y):  # break out of while loop, then continue in for loop
                         break
-                if not self.is_on_board(x, y):
+                if not is_on_board(x, y):
                     continue
-                if board[x][y] == tile:
+                if self.board[x][y] == tile:
                     # There are pieces to flip over. Go in the reverse direction until we reach the original space,
                     # noting all the tiles along the way.
                     while True:
@@ -81,44 +90,86 @@ class Othello:
                             break
                         tilesToFlip.append([x, y])
 
-        board[xstart][ystart] = ' '  # restore the empty space
+        self.board[xstart][ystart] = ' '  # restore the empty space
         if len(tilesToFlip) == 0:  # If no tiles were flipped, this is not a valid move.
             return False
         return tilesToFlip
-
-    def is_on_board(self, x, y):
-        # Returns True if the coordinates are located on the board.
-        return 0 <= x <= 7 and 0 <= y <= 7
-
-    def get_board_with_valid_moves(self, board, tile):
-        # Returns a new board with . marking the valid moves the given player can make.
-        dupeBoard = self.get_board_copy(board)
-
-        for x, y in self.get_valid_moves(dupeBoard, tile):
-            dupeBoard[x][y] = '.'
-        return dupeBoard
-
-    def get_valid_moves(self, board, tile):
+    
+    def get_valid_moves(self, tile):
         # Returns a list of [x,y] lists of valid moves for the given player on the given board.
-        validMoves = []
+        valid_moves = []
 
         for x in range(8):
             for y in range(8):
-                if self.is_valid_move(board, tile, x, y):
-                    validMoves.append([x, y])
-        return validMoves
+                if self.is_valid_move(tile, x, y):
+                    valid_moves.append([x, y])
+        return valid_moves
 
-    def get_board_score(self, board):
+    def get_score(self):
         # Determine the score by counting the tiles. Returns a dictionary with keys 'X' and 'O'.
         xscore = 0
         oscore = 0
         for x in range(8):
             for y in range(8):
-                if board[x][y] == 'X':
+                if self.board[x][y] == 'X':
                     xscore += 1
-                if board[x][y] == 'O':
+                if self.board[x][y] == 'O':
                     oscore += 1
         return {'X': xscore, 'O': oscore}
+
+    def make_move(self, tile, xstart, ystart):
+        # Place the tile on the board at xstart, ystart, and flip any of the opponent's pieces.
+        # Returns False if this is an invalid move, True if it is valid.
+        tiles_to_flip = self.is_valid_move(tile, xstart, ystart)
+
+        if not tiles_to_flip:
+            return False
+
+        self.board[xstart][ystart] = tile
+        for x, y in tiles_to_flip:
+            self.board[x][y] = tile
+        return True
+
+    def copy(self):
+        # Make a duplicate of the board list and return the duplicate.
+        dupe_board = Board()
+
+        for x in range(8):
+            for y in range(8):
+                dupe_board.board[x][y] = self.board[x][y]
+
+        return dupe_board
+
+    def copy_with_valid_moves(self, tile):
+        # ONLY TO BE USED WITH PLAYER INTERACTION. NOT FOR TRAINING
+        # Returns a new board with . marking the valid moves the given player can make.
+        dupe_board = self.copy()
+
+        for x, y in dupe_board.get_valid_moves(tile):
+            dupe_board.board[x][y] = '.'
+        return dupe_board
+
+    def list_to_array(self):
+        state = np.zeros((8, 8))
+        for i in range(8):
+            for j in range(8):
+                if self.board[j][i] == 'X':
+                    state[i, j] = 1
+                elif self.board[j][i] == 'O':
+                    state[i, j] = -1
+                else:
+                    state[i, j] = 0
+        return state
+
+
+class Othello:
+
+    def __init__(self, interactive=True):
+        self.player_tile = 'X'
+        self.computer_tile = 'O'
+        self.player_score = 0
+        self.computer_score = 0
+        self.interactive = interactive
 
     def choose_player_tile(self):
         # Lets the player type which tile they want to be.
@@ -130,53 +181,16 @@ class Othello:
 
         # the first element in the list is the player's tile, the second is the computer's tile.
         if tile == 'X':
-            return ['X', 'O']
+            assigned_tiles = ['X', 'O']
         else:
-            return ['O', 'X']
+            assigned_tiles = ['O', 'X']
 
-    # def who_goes_first(self):
-    #     # Randomly choose the player who goes first.
-    #     if random.randint(0, 1) == 0:
-    #         return 'computer'
-    #     else:
-    #         return 'player'
+        self.player_tile, self.computer_tile = assigned_tiles
 
-    # def play_again(self):
-    #     # This function returns True if the player wants to play again, otherwise it returns False.
-    #     print('Do you want to play again? (yes or no)')
-    #     return input().lower().startswith('y')
-
-    def make_move(self, board, tile, xstart, ystart):
-        # Place the tile on the board at xstart, ystart, and flip any of the opponent's pieces.
-        # Returns False if this is an invalid move, True if it is valid.
-        tilesToFlip = self.is_valid_move(board, tile, xstart, ystart)
-
-        if not tilesToFlip:
-            return False
-
-        board[xstart][ystart] = tile
-        for x, y in tilesToFlip:
-            board[x][y] = tile
-        return True
-
-    def get_board_copy(self, board):
-        # Make a duplicate of the board list and return the duplicate.
-        dupeBoard = self.get_new_board()
-
-        for x in range(8):
-            for y in range(8):
-                dupeBoard[x][y] = board[x][y]
-
-        return dupeBoard
-
-    def is_on_corner(self, x, y):
-        # Returns True if the position is in one of the four corners.
-        return (x == 0 and y == 0) or (x == 7 and y == 0) or (x == 0 and y == 7) or (x == 7 and y == 7)
-
-    def get_player_move(self, board, playerTile):
-        # Let the player type in their move.
+    def get_player_move(self, board):
+        # Let the player type in their move given a board state.
         # Returns the move as [x, y] (or returns the strings 'hints' or 'quit')
-        DIGITS1TO8 = '1 2 3 4 5 6 7 8'.split()
+        valid_digits = '1 2 3 4 5 6 7 8'.split()
         while True:
             print('Enter your move, or type quit to end the game, or hints to turn off/on hints.')
             move = input().lower()
@@ -185,10 +199,10 @@ class Othello:
             if move == 'hints':
                 return 'hints'
 
-            if len(move) == 2 and move[0] in DIGITS1TO8 and move[1] in DIGITS1TO8:
+            if len(move) == 2 and move[0] in valid_digits and move[1] in valid_digits:
                 x = int(move[0]) - 1
                 y = int(move[1]) - 1
-                if not self.is_valid_move(board, playerTile, x, y):
+                if not board.is_valid_move(self.player_tile, x, y):
                     continue
                 else:
                     break
@@ -198,78 +212,64 @@ class Othello:
 
         return [x, y]
 
-    def get_computer_move(self, board, computerTile):
+    def get_computer_move(self, board):
         # Given a board and the computer's tile, determine where to
         # move and return that move as a [x, y] list.
-        possibleMoves = self.get_valid_moves(board, computerTile)
+        possible_moves = board.get_valid_moves(self.computer_tile)
 
         # randomize the order of the possible moves
-        random.shuffle(possibleMoves)
+        random.shuffle(possible_moves)
 
         # always go for a corner if available.
-        for x, y in possibleMoves:
-            if self.is_on_corner(x, y):
+        for x, y in possible_moves:
+            if is_on_corner(x, y):
                 return [x, y]
 
         # Go through all the possible moves and remember the best scoring move
-        bestScore = -1
-        bestMove = []
-        for x, y in possibleMoves:
-            dupeBoard = self.get_board_copy(board)
-            self.make_move(dupeBoard, computerTile, x, y)
-            score = self.get_board_score(dupeBoard)[computerTile]
-            if score > bestScore:
-                bestMove = [x, y]
-                bestScore = score
-        return bestMove
-
-    def show_points(self, mainBoard, playerTile, computerTile):
+        best_score = -1
+        best_move = []
+        for x, y in possible_moves:
+            dupe_board = board.copy()
+            dupe_board.make_move(self.computer_tile, x, y)
+            score = dupe_board.get_score()[self.computer_tile]
+            if score > best_score:
+                best_move = [x, y]
+                best_score = score
+        return best_move
+    
+    def show_points(self, board):
         # Prints out the current score.
-        scores = self.get_board_score(mainBoard)
-        print('You have %s points. The computer has %s points.' % (scores[playerTile], scores[computerTile]))
+        scores = board.get_score()
+        print('You have %s points. The computer has %s points.' % (scores[self.player_tile], scores[self.computer_tile]))
 
     def calculate_reward(self, result):
         return result
-
-    def list_to_array(self, mainBoard):
-        state = np.zeros((8, 8))
-        for i in range(8):
-            for j in range(8):
-                if mainBoard[j][i] == 'X':
-                    state[i, j] = 1
-                elif mainBoard[j][i] == 'O':
-                    state[i, j] = 2
-                else:
-                    state[i, j] = 3
-        return state
-
-    def run_othello(self):
+    
+    def run(self):
         print('Welcome to Othello!')
 
         while True:
             # Reset the board and game.
-            mainBoard = self.get_new_board()
-            self.reset_board(mainBoard)
-            playerTile, computerTile = self.choose_player_tile()
+            main_board = Board()
+            self.choose_player_tile()
             showHints = True
-            if playerTile == 'X':
+            if self.player_tile == 'X':
                 turn = 'player'
             else:
                 turn = 'computer'
-            # print('The ' + turn + ' will go first.')
 
             while True:
                 if turn == 'player':
                     # Player's turn.
                     if showHints:
-                        validMovesBoard = self.get_board_with_valid_moves(mainBoard, playerTile)
-                        self.draw_board(validMovesBoard)
-                        print(self.list_to_array(mainBoard))
+                        valid_moves_board = main_board.copy_with_valid_moves(self.player_tile)
+                        valid_moves_board.draw()
+                        print(main_board.list_to_array())
                     else:
-                        self.draw_board(mainBoard)
+                        main_board.draw()
 
-                    self.show_points(mainBoard, playerTile, computerTile)
-                    move = self.get_player_move(mainBoard, playerTile)
+                    self.show_points(main_board)
+                    move = self.get_player_move(main_board)
 
                     if move == 'quit':
                         print('Thanks for playing!')
@@ -278,11 +278,11 @@ class Othello:
                         showHints = not showHints
                         continue
                     else:
-                        self.make_move(mainBoard, playerTile, move[0], move[1])
+                        main_board.make_move(self.player_tile, move[0], move[1])
 
-                    if not self.get_valid_moves(mainBoard, computerTile):
+                    if not main_board.get_valid_moves(self.computer_tile):
                         print('Your opponent has no legal move. It is your turn.')
-                        if not self.get_valid_moves(mainBoard, playerTile):
+                        if not main_board.get_valid_moves(self.player_tile):
                             print('You also have no legal move. The game is over.')
                             break
                         pass
@@ -291,15 +291,15 @@ class Othello:
 
                 else:
                     # Computer's turn.
-                    self.draw_board(mainBoard)
-                    self.show_points(mainBoard, playerTile, computerTile)
+                    main_board.draw()
+                    self.show_points(main_board)
                     input('Press Enter to see the computer\'s move.\n')
-                    x, y = self.get_computer_move(mainBoard, computerTile)
-                    self.make_move(mainBoard, computerTile, x, y)
+                    x, y = self.get_computer_move(main_board)
+                    main_board.make_move(self.computer_tile, x, y)
 
-                    if not self.get_valid_moves(mainBoard, playerTile):
+                    if not main_board.get_valid_moves(self.player_tile):
                         print('You have no legal move. It is the computer\'s turn.')
-                        if not self.get_valid_moves(mainBoard, computerTile):
+                        if not main_board.get_valid_moves(self.computer_tile):
                             print('Your opponent also has no legal move. The game is over')
                             break
                         pass
@@ -307,23 +307,23 @@ class Othello:
                         turn = 'player'
 
             # Display the final score.
-            self.draw_board(mainBoard)
-            scores = self.get_board_score(mainBoard)
-            print('X scored %s points. O scored %s points.' % (scores['X'], scores['O']))
-            if scores[playerTile] > scores[computerTile]:
-                print('You beat the computer by %s points! Congratulations!' % (scores[playerTile] - scores[computerTile]))
+            main_board.draw()
+            scores = main_board.get_score()
+            self.player_score = scores[self.player_tile]
+            self.computer_score = scores[self.computer_tile]
+            margin = self.player_score - self.computer_score
+            print('The player scored %s points. The computer scored %s points.' % (self.player_score, self.computer_score))
+            if self.player_score > self.computer_score:
+                print('You beat the computer by %s points! Congratulations!' % margin)
                 return self.calculate_reward(1)
-            elif scores[playerTile] < scores[computerTile]:
-                print('You lost. The computer beat you by %s points.' % (scores[computerTile] - scores[playerTile]))
+            elif self.player_score < self.computer_score:
+                print('You lost. The computer beat you by %s points.' % margin)
                 return self.calculate_reward(-1)
             else:
                 print('The game was a tie!')
                 return self.calculate_reward(0)
 
-            # if not self.play_again():
-            #     break
-
 
 if __name__ == '__main__':
     othello = Othello()
-    othello.run_othello()
+    othello.run()
