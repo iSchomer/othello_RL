@@ -164,12 +164,13 @@ class Board:
 
 class Othello:
 
-    def __init__(self, interactive=True):
+    def __init__(self, interactive=True, show_steps=False):
         self.player_tile = 'X'
         self.computer_tile = 'O'
         self.player_score = 0
         self.computer_score = 0
         self.interactive = interactive
+        self.stepper = show_steps
 
     def choose_player_tile(self):
         # Lets the player type which tile they want to be.
@@ -244,10 +245,33 @@ class Othello:
 
     def calculate_reward(self, result):
         return result
-    
-    def run(self):
-        print('Welcome to Othello!')
 
+    def start(self):
+        if self.interactive:
+            self.run_interactive()
+        else:
+            # Reset the board and game.
+            main_board = Board()
+            self.choose_player_tile()
+            showHints = True
+            if self.player_tile == 'X':
+                turn = 'player'
+            else:
+                turn = 'computer'
+
+    def step(self, board, action):
+        # TODO - make a function that takes a player's action and returns the next state and reward
+        reward = 0
+        next_board = board.copy()    # TODO - update board based on action
+        # option to display visuals while learning how to train
+        if self.stepper:
+            next_board.draw()
+            print(next_board.list_to_array())
+            print('Reward on step: {0}'.format(reward))
+        return reward, next_board
+
+    def run_interactive(self):
+        print('Welcome to Othello!')
         while True:
             # Reset the board and game.
             main_board = Board()
@@ -288,7 +312,6 @@ class Othello:
                         pass
                     else:
                         turn = 'computer'
-
                 else:
                     # Computer's turn.
                     main_board.draw()
@@ -326,4 +349,4 @@ class Othello:
 
 if __name__ == '__main__':
     othello = Othello()
-    othello.run()
+    othello.start()
