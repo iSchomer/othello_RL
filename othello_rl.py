@@ -23,7 +23,7 @@ class OthelloAgent:
         # Feed-forward NN
         model = tf.keras.Sequential()
         model.add(layers.Dense(50, input_dim=self.state_size, activation='relu'))
-        model.add(layers.Dense(64, activation='softmax'))
+        model.add(layers.Dense(64, activation='sigmoid'))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
@@ -32,11 +32,11 @@ class OthelloAgent:
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
-            # TODO - Take a random action
-            return [4, 4]
+            return [random.randint(0, 7), random.randint(0, 7)]
 
         # Take an action based on the Q function
         act_values = self.model.predict(state)
+        # TODO - chance action from int(0, 63) to [int(0, 7), int(0, 7)]
         return np.argmax(act_values[0])
 
     def replay(self, batch_size):
@@ -46,6 +46,7 @@ class OthelloAgent:
             if not done:
                 target = reward + self.gamma * \
                          np.amax(self.model.predict(next_state)[0])
+            # TODO: change target_f to a more intuitive name
             target_f = self.model.predict(state)
             target_f[0][action] = target
             self.model.fit(state, target_f, epochs=1, verbose=0)
@@ -84,6 +85,8 @@ if __name__ == "__main__":
                 print("episode {}: {} moves, Result: {}, e: {:.2}"
                       .format(e, move, result, agent.epsilon))
                 break
+            # TODO - maybe only update every batch_size moves
+            #       (instead of every move after batch_size)?
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
         # if e % 10 == 0:
