@@ -205,10 +205,14 @@ class OthelloGame:
     def choose_player_tile(self):
         # Lets the player type which tile they want to be.
         # Returns a list with the player's tile as the first item, and the computer's tile as the second.
-        tile = ''
-        while not (tile == 'X' or tile == 'O'):
-            print('Do you want to be X or O? X always moves first.')
-            tile = input().upper()
+        if self.interactive:
+            tile = ''
+            while not (tile == 'X' or tile == 'O'):
+                print('Do you want to be X or O? X always moves first.')
+                tile = input().upper()
+        else:
+            # TODO - expand agent options to be something other than 'X"
+            tile = 'X'
 
         # the first element in the list is the player's tile, the second is the computer's tile.
         if tile == 'X':
@@ -251,25 +255,12 @@ class OthelloGame:
         # move and return that move as a [x, y] list.
         possible_moves = self.board.get_valid_moves(self.computer_tile)
 
-        # randomize the order of the possible moves
-        random.shuffle(possible_moves)
-
-        # always go for a corner if available.
-        for x, y in possible_moves:
-            if is_on_corner(x, y):
-                return [x, y]
-
-        # Go through all the possible moves and remember the best scoring move
-        best_score = -1
-        best_move = []
-        for x, y in possible_moves:
-            dupe_board = self.board.copy()
-            dupe_board.make_move(self.computer_tile, x, y)
-            score = dupe_board.get_score()[self.computer_tile]
-            if score > best_score:
-                best_move = [x, y]
-                best_score = score
-        return best_move
+        if possible_moves:
+            # randomize the order of the possible moves
+            random.shuffle(possible_moves)
+            return possible_moves[0]
+        else:
+            return []
     
     def show_points(self):
         # Prints out the current score.
@@ -283,38 +274,81 @@ class OthelloGame:
             # Reset the board and game.
             self.board.reset()
             self.choose_player_tile()
-            self.show_hints = False
+            self.show_hints = True
             if self.player_tile == 'X':
                 turn = 'player'
             else:
                 turn = 'computer'
 
     def step(self, action):
+        """
+        :return: reward, next_state, next_state_valid_moves
+        """
         reward = 0
         terminal = False  # indicates terminal state
-        next_board = self.board.copy()
+        agent_moves = self.board.get_valid_moves(self.player_tile)
+        computer_moves = self.board.get_valid_moves(self.computer_tile)
 
-        # generate next state
+        # can we make a move
         if not self.board.is_valid_move(self.player_tile, action[0], action[1]):
-            # TODO - go down the list and get the next best action
-            return -10, self.board, terminal
-        next_board.make_move(self.player_tile, action[0], action[1])
-
-        # option to display visuals while learning how to train
-        if self.stepper:
-            next_board.draw()
-            print(next_board.list_to_array())
-            print('Reward on step: {0}'.format(reward))
-        if not next_board.get_valid_moves(self.player_tile) and not next_board.get_valid_moves(self.computer_tile):
-            terminal = True
-            if self.player_score > self.computer_score:
-                reward = 1
-            elif self.player_score < self.computer_score:
-                reward = -1
+            # return an empty list to indicate invalid move when we still have valid ones
+            if agent_moves:
+                return []
             else:
-                reward = 0
-        self.board = next_board.copy()
-        return reward, self.board, terminal
+                # we have entered a terminal state - no moves left
+                # allow computer to move until terminal
+                terminal = True
+                while True:
+                    computer_moves = self.board.get_valid_moves(self.computer_tile)
+                    if not computer_moves:
+                        break
+                    computer_action = self.get_computer_move()
+                    self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+
+                reward = self.calculate_final_reward()
+                if self.stepper:
+                    self.board.draw()
+                return reward, self.board.list_to_array(), terminal
+        else:
+            # make a move
+            self.board.make_move(self.player_tile, action[0], action[1])
+
+        # check if agent ended the game
+        if not agent_moves and not computer_moves:
+            # Game is over!
+            terminal = True
+            reward = self.calculate_final_reward()
+            if self.stepper:
+                self.board.draw()
+            return reward, self.board.list_to_array(), terminal
+        else:
+            # computer's turn
+            computer_action = self.get_computer_move()
+            if computer_action:
+                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+
+        # check if the computer ended the game
+        if not agent_moves and computer_moves:
+            terminal = True
+            reward = self.calculate_final_reward()
+        if self.stepper:
+            self.board.draw()
+        return reward, self.board.list_to_array(), terminal
+
+    def calculate_final_reward(self):
+        scores = self.board.get_score()
+        self.player_score, self.computer_score = scores[self.player_tile], scores[self.computer_tile]
+        if self.player_score > self.computer_score:
+            reward = 1
+            if self.stepper:
+                print("The agent wins a game!!")
+        elif self.player_score < self.computer_score:
+            reward = -1
+            if self.stepper:
+                print("The agent loses to the computer...")
+        else:
+            reward = 0
+        return reward
 
     def run_interactive(self):
         print('Welcome to Othello!')

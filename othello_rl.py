@@ -32,12 +32,17 @@ class OthelloAgent:
 
     def get_action(self, state):
         if np.random.rand() <= self.epsilon:
-            return [random.randint(0, 7), random.randint(0, 7)]
+            return [[random.randint(0, 7), random.randint(0, 7)] for _ in range(5)]
 
         # Take an action based on the Q function
         act_values = self.model.predict(state)
-        # return the 2D index of the highest action value
-        return list(np.unravel_index(np.argmax(act_values, axis=None), act_values.shape))
+
+        # return the indexes of the top 5 highest action value
+        #     ~ using Numpy magic ~
+        act_list = act_values[0].flatten()
+        top_five = np.argpartition(act_list, 5)[-5:]  # returns indexes of 5 highest values, not in order
+        indexes = top_five[np.argsort(act_list[top_five])]  # ordered list of indexes
+        return [list(np.unravel_index(i, shape=(8,8))) for i in indexes]  # index converted to x and y
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
@@ -60,7 +65,7 @@ if __name__ == "__main__":
     game = OthelloGame(interactive=False, show_steps=True)
 
     # agent.load("final_project/othello_backup_v1")
-    done = False
+    terminal = False
     batch_size = 32
     episodes = 1
 
@@ -70,13 +75,30 @@ if __name__ == "__main__":
         state = game.get_state()  # 8x8 numpy array
         state = np.reshape(state, [1, 64])   # 1x64 vector
 
-        for move in range(60):   # max amount of moves
-            action = agent.get_action(state)
-            next_state, reward, done = game.step(action)
+        for move in range(800):   # max amount of moves
+            actions = agent.get_action(state)
+            action = actions[0]
+            acted = False
+            for i in range(5):
+                try:
+                    reward, next_state, terminal = game.step(actions[i])
+                    action = actions[i]
+                    acted = True
+                    break
+                except ValueError:  # for an invalid move
+                    continue
+            if not acted:
+                # give it a random valid move to speed up learning
+                agent_tile = game.player_tile
+                valid_actions = game.board.get_valid_moves(agent_tile)
+                random.shuffle(valid_actions)
+                action = valid_actions[0]
+                reward, next_state, terminal = game.step(action)
+
             next_state = np.reshape(next_state, [1, 64])
-            agent.remember(state, action, reward, next_state, done)
+            agent.remember(state, action, reward, next_state, terminal)
             state = next_state
-            if done:
+            if terminal:
                 # terminal reward is 1 for win, -1 for lose
                 # use this as an indexing code to get the result
                 results = ['Tie', 'Win', 'Loss']
@@ -84,7 +106,7 @@ if __name__ == "__main__":
                 print("episode {}: {} moves, Result: {}, e: {:.2}"
                       .format(e, move, result, agent.epsilon))
                 break
-            # TODO - maybe only update every batch_size moves
+            # Question - maybe only update every batch_size moves
             #       (instead of every move after batch_size)?
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
