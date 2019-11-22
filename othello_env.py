@@ -286,49 +286,45 @@ class OthelloGame:
         """
         reward = 0
         terminal = False  # indicates terminal state
-        agent_moves = self.board.get_valid_moves(self.player_tile)
-        computer_moves = self.board.get_valid_moves(self.computer_tile)
 
-        # can we make a move
-        if not self.board.is_valid_move(self.player_tile, action[0], action[1]):
-            # return an empty list to indicate invalid move when we still have valid ones
-            if agent_moves:
+        # attempt to take the action
+        if self.board.is_valid_move(self.player_tile, action[0], action[1]):
+            if self.stepper:
+                print("Action: ", action)
+            self.board.make_move(self.player_tile, action[0], action[1])
+        else:
+            # let the agent choose again if there is a valid choice
+            if self.board.get_valid_moves(self.player_tile):
                 return []
-            else:
-                # we have entered a terminal state - no moves left
-                # allow computer to move until terminal
-                terminal = True
-                while True:
-                    computer_moves = self.board.get_valid_moves(self.computer_tile)
-                    if not computer_moves:
-                        break
-                    computer_action = self.get_computer_move()
-                    self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
 
+        # Now at 1 of 4 options:
+        #   1. Game is over                  ->  indicate terminal and exit
+        #   2. Computer is now out of moves  ->  exit and let agent choose again
+        #   3. Agent is now out of moves     ->  Let computer take a move
+        #   4. Both still have moves         ->  let computer take 1 move
+        computer_moves = self.board.get_valid_moves(self.computer_tile)
+        if not computer_moves:
+            # options 1 and 2
+            if not self.board.get_valid_moves(self.player_tile):
+                # option 1 - game over
                 reward = self.calculate_final_reward()
+                terminal = True
+                if self.stepper:
+                    self.board.draw()
+                return reward, self.board.list_to_array(), terminal
+            else:
+                # option 2 - return current state so agent can go again
                 if self.stepper:
                     self.board.draw()
                 return reward, self.board.list_to_array(), terminal
         else:
-            # make a move
-            self.board.make_move(self.player_tile, action[0], action[1])
-
-        # check if agent ended the game
-        if not agent_moves and not computer_moves:
-            # Game is over!
-            terminal = True
-            reward = self.calculate_final_reward()
-            if self.stepper:
-                self.board.draw()
-            return reward, self.board.list_to_array(), terminal
-        else:
-            # computer's turn
+            # options 3 and 4
             computer_action = self.get_computer_move()
-            if computer_action:
-                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+            self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
 
         # check if the computer ended the game
-        if not agent_moves and computer_moves:
+        if not self.board.get_valid_moves(self.player_tile) and \
+                not self.board.get_valid_moves(self.player_tile):
             terminal = True
             reward = self.calculate_final_reward()
         if self.stepper:
@@ -341,11 +337,11 @@ class OthelloGame:
         if self.player_score > self.computer_score:
             reward = 1
             if self.stepper:
-                print("The agent wins a game!!")
+                print("The agent wins a game!! {} to {}".format(self.player_score, self.computer_score))
         elif self.player_score < self.computer_score:
             reward = -1
             if self.stepper:
-                print("The agent loses to the computer...")
+                print("The agent loses to the computer... {} to {}".format(self.player_score, self.computer_score))
         else:
             reward = 0
         return reward
@@ -423,3 +419,20 @@ class OthelloGame:
                 print('You lost. The computer beat you by %s points.' % margin)
             else:
                 print('The game was a tie!')
+
+    def dummy(self):
+        computer_moves = self.board.get_valid_moves(self.computer_tile)
+        if not self.board.get_valid_moves(self.player_tile):
+            # option 1 and option 2
+            while computer_moves:
+                comp_action = self.get_computer_move()
+                self.board.make_move(self.computer_tile, comp_action[0], comp_action[1])
+                computer_moves = self.board.get_valid_moves(self.computer_tile)
+            reward = self.calculate_final_reward()
+            terminal = True
+            return reward, self.board.list_to_array(), terminal
+        else:
+            # option 3 and option 4
+            computer_action = self.get_computer_move()
+            if computer_action:
+                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])

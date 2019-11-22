@@ -58,16 +58,23 @@ class OthelloAgent:
         #if self.epsilon > self.epsilon_min:
         #    self.epsilon *= self.epsilon_decay
 
+    def load(self, name):
+        self.model.load_weights(name)
+
+    def save(self, name):
+        self.model.save_weights(name)
+
 
 if __name__ == "__main__":
     # initialize agent and environment
     agent = OthelloAgent()
-    game = OthelloGame(interactive=False, show_steps=True)
+    game = OthelloGame(interactive=False, show_steps=False)
 
-    # agent.load("final_project/othello_backup_v1")
+    # agent.load("final_project/saves/othello_backup_v2")
     terminal = False
     batch_size = 32
-    episodes = 1
+    episodes = 50
+    avg_result = 0
 
     for e in range(episodes):
         game.reset()
@@ -101,14 +108,21 @@ if __name__ == "__main__":
             if terminal:
                 # terminal reward is 1 for win, -1 for lose
                 # use this as an indexing code to get the result
-                results = ['Tie', 'Win', 'Loss']
-                result = results[reward]
+                outcomes = ['Tie', 'Win', 'Loss']
+                result = outcomes[reward]
+                if result == 'Win':
+                    n = 1
+                else:
+                    n = 0
+                avg_result += (1/(e+1))*(n - avg_result)
                 print("episode {}: {} moves, Result: {}, e: {:.2}"
                       .format(e, move, result, agent.epsilon))
+                print("Average win/loss ratio: ", avg_result)
                 break
             # Question - maybe only update every batch_size moves
             #       (instead of every move after batch_size)?
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
+
         # if e % 10 == 0:
-        #     agent.save("final_project/othello_backup_v1")
+            # agent.save("final_project/saves/othello_backup_v2")
