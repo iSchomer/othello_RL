@@ -22,7 +22,7 @@ class OthelloAgent:
     def build_model(self):
         # Feed-forward NN
         model = tf.keras.Sequential()
-        model.add(layers.Dense(50, input_dim=self.state_size, activation='relu'))
+        model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid'))
         model.add(layers.Dense(64, activation='sigmoid'))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
@@ -30,14 +30,14 @@ class OthelloAgent:
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
+    def get_action(self, state):
         if np.random.rand() <= self.epsilon:
             return [random.randint(0, 7), random.randint(0, 7)]
 
         # Take an action based on the Q function
         act_values = self.model.predict(state)
-        # TODO - chance action from int(0, 63) to [int(0, 7), int(0, 7)]
-        return np.argmax(act_values[0])
+        # return the 2D index of the highest action value
+        return list(np.unravel_index(np.argmax(act_values, axis=None), act_values.shape))
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
@@ -46,10 +46,9 @@ class OthelloAgent:
             if not done:
                 target = reward + self.gamma * \
                          np.amax(self.model.predict(next_state)[0])
-            # TODO: change target_f to a more intuitive name
-            target_f = self.model.predict(state)
-            target_f[0][action] = target
-            self.model.fit(state, target_f, epochs=1, verbose=0)
+            estimate = self.model.predict(state)
+            estimate[0][action] = target
+            self.model.fit(state, estimate, epochs=1, verbose=0)
         # optional epsilon decay feature
         #if self.epsilon > self.epsilon_min:
         #    self.epsilon *= self.epsilon_decay
@@ -72,7 +71,7 @@ if __name__ == "__main__":
         state = np.reshape(state, [1, 64])   # 1x64 vector
 
         for move in range(60):   # max amount of moves
-            action = agent.act(state)
+            action = agent.get_action(state)
             next_state, reward, done = game.step(action)
             next_state = np.reshape(next_state, [1, 64])
             agent.remember(state, action, reward, next_state, done)

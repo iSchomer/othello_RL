@@ -26,16 +26,16 @@ class Board:
 
     def draw(self):
 
-        HLINE = '  +----+----+----+----+----+----+----+----+'
+        h_line = '  +----+----+----+----+----+----+----+----+'
 
         print('     1    2    3    4    5    6    7    8')
-        print(HLINE)
+        print(h_line)
         for y in range(8):
             print(y + 1, end=' ')
             for x in range(8):
                 print('| %s' % (self.board[x][y]), end='  ')
             print('|')
-            print(HLINE)
+            print(h_line)
 
     def reset(self):
         # Blanks out the board it is passed, except for the original starting position.
@@ -49,33 +49,33 @@ class Board:
         self.board[4][3] = 'O'
         self.board[4][4] = 'X'
 
-    def is_valid_move(self, tile, xstart, ystart):
-        # Returns False if the player's move on space xstart, ystart is invalid.
+    def is_valid_move(self, tile, x_start, y_start):
+        # Returns False if the player's move on space x_start, y_start is invalid.
         # If it is a valid move, returns a list of spaces that would become the player's if they made a move here.
-        if self.board[xstart][ystart] != ' ' or not is_on_board(xstart, ystart):
+        if self.board[x_start][y_start] != ' ' or not is_on_board(x_start, y_start):
             return False
 
-        self.board[xstart][ystart] = tile  # temporarily set the tile on the board.
+        self.board[x_start][y_start] = tile  # temporarily set the tile on the board.
 
         if tile == 'X':
             other_tile = 'O'
         else:
             other_tile = 'X'
 
-        tilesToFlip = []
-        for xdirection, ydirection in [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]:
-            x, y = xstart, ystart
-            x += xdirection  # first step in the direction
-            y += ydirection  # first step in the direction
+        tiles_to_flip = []
+        for x_direction, y_direction in [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]:
+            x, y = x_start, y_start
+            x += x_direction  # first step in the direction
+            y += y_direction  # first step in the direction
             if is_on_board(x, y) and self.board[x][y] == other_tile:
                 # There is a piece belonging to the other player next to our piece.
-                x += xdirection
-                y += ydirection
+                x += x_direction
+                y += y_direction
                 if not is_on_board(x, y):
                     continue
                 while self.board[x][y] == other_tile:
-                    x += xdirection
-                    y += ydirection
+                    x += x_direction
+                    y += y_direction
                     if not is_on_board(x, y):  # break out of while loop, then continue in for loop
                         break
                 if not is_on_board(x, y):
@@ -84,16 +84,16 @@ class Board:
                     # There are pieces to flip over. Go in the reverse direction until we reach the original space,
                     # noting all the tiles along the way.
                     while True:
-                        x -= xdirection
-                        y -= ydirection
-                        if x == xstart and y == ystart:
+                        x -= x_direction
+                        y -= y_direction
+                        if x == x_start and y == y_start:
                             break
-                        tilesToFlip.append([x, y])
+                        tiles_to_flip.append([x, y])
 
-        self.board[xstart][ystart] = ' '  # restore the empty space
-        if len(tilesToFlip) == 0:  # If no tiles were flipped, this is not a valid move.
+        self.board[x_start][y_start] = ' '  # restore the empty space
+        if len(tiles_to_flip) == 0:  # If no tiles were flipped, this is not a valid move.
             return False
-        return tilesToFlip
+        return tiles_to_flip
     
     def get_valid_moves(self, tile):
         # Returns a list of [x,y] lists of valid moves for the given player on the given board.
@@ -107,25 +107,25 @@ class Board:
 
     def get_score(self):
         # Determine the score by counting the tiles. Returns a dictionary with keys 'X' and 'O'.
-        xscore = 0
-        oscore = 0
+        x_score = 0
+        o_score = 0
         for x in range(8):
             for y in range(8):
                 if self.board[x][y] == 'X':
-                    xscore += 1
-                if self.board[x][y] == 'O':
-                    oscore += 1
-        return {'X': xscore, 'O': oscore}
+                    x_score += 1
+                elif self.board[x][y] == 'O':
+                    o_score += 1
+        return {'X': x_score, 'O': o_score}
 
-    def make_move(self, tile, xstart, ystart):
-        # Place the tile on the board at xstart, ystart, and flip any of the opponent's pieces.
+    def make_move(self, tile, x_start, y_start):
+        # Place the tile on the board at x_start, y_start, and flip any of the opponent's pieces.
         # Returns False if this is an invalid move, True if it is valid.
-        tiles_to_flip = self.is_valid_move(tile, xstart, ystart)
+        tiles_to_flip = self.is_valid_move(tile, x_start, y_start)
 
         if not tiles_to_flip:
             return False
 
-        self.board[xstart][ystart] = tile
+        self.board[x_start][y_start] = tile
         for x, y in tiles_to_flip:
             self.board[x][y] = tile
         return True
@@ -161,10 +161,30 @@ class Board:
                     state[i, j] = 0
         return state
 
+    def array_to_list(self, state):
+        for i in range(8):
+            for j in range(8):
+                if state[i, j] == 1:
+                    self.board[j][i] = 'X'
+                elif state[i, j] == -1:
+                    self.board[j][i] = 'O'
+                else:
+                    self.board[j][i] = ' '
+        return self.board
+
 
 class OthelloGame:
 
-    def __init__(self, interactive=True, show_steps=False):
+    def __init__(self, opponent='rand', interactive=True, show_steps=False):
+        """
+        :param opponent: specifies opponent
+            'rand' --> chooses randomly among valid actions
+            'heur' --> uses a symmetrical value table
+            'bench' --> uses a value table trained via co-evolution
+        :param interactive: specifies whether we are using program for RL
+                or to play interactively
+        :param show_steps: shows board at each step
+        """
         self.board = Board()
         self.player_tile = 'X'
         self.computer_tile = 'O'
@@ -172,6 +192,7 @@ class OthelloGame:
         self.computer_score = 0
         self.interactive = interactive
         self.stepper = show_steps
+        self.show_hints = False
 
     def reset(self):
         self.board.reset()
@@ -197,22 +218,24 @@ class OthelloGame:
 
         self.player_tile, self.computer_tile = assigned_tiles
 
-    def get_player_move(self):
+    def get_player_action(self):
         # Let the player type in their move given a board state.
         # Returns the move as [x, y] (or returns the strings 'hints' or 'quit')
         valid_digits = '1 2 3 4 5 6 7 8'.split()
         while True:
             print('Enter your move, or type quit to end the game, or hints to turn off/on hints.')
-            move = input().lower()
-            if move == 'quit':
+            player_action = input().lower()
+            if player_action == 'quit':
                 return 'quit'
-            if move == 'hints':
+            elif player_action == 'hints':
                 return 'hints'
 
-            if len(move) == 2 and move[0] in valid_digits and move[1] in valid_digits:
-                x = int(move[0]) - 1
-                y = int(move[1]) - 1
+            elif len(player_action) == 2 and player_action[0] in valid_digits and player_action[1] in valid_digits:
+                x = int(player_action[0]) - 1
+                y = int(player_action[1]) - 1
                 if not self.board.is_valid_move(self.player_tile, x, y):
+                    if self.interactive:
+                        print('That is not a legal move.')
                     continue
                 else:
                     break
@@ -223,6 +246,7 @@ class OthelloGame:
         return [x, y]
 
     def get_computer_move(self):
+        # TODO - add functionality for which opponent is active
         # Given a board and the computer's tile, determine where to
         # move and return that move as a [x, y] list.
         possible_moves = self.board.get_valid_moves(self.computer_tile)
@@ -252,9 +276,6 @@ class OthelloGame:
         scores = self.board.get_score()
         print('You have %s points. The computer has %s points.' % (scores[self.player_tile], scores[self.computer_tile]))
 
-    def calculate_reward(self, result):
-        return result
-
     def start(self):
         if self.interactive:
             self.run_interactive()
@@ -262,33 +283,46 @@ class OthelloGame:
             # Reset the board and game.
             self.board.reset()
             self.choose_player_tile()
-            showHints = True
+            self.show_hints = False
             if self.player_tile == 'X':
                 turn = 'player'
             else:
                 turn = 'computer'
 
     def step(self, action):
-        # TODO - make a function that takes a player's action and returns the next state and reward
-        #        and also indicates whether a terminal state is reached
         reward = 0
-        done = False     # indicates terminal state
-        next_board = self.board.copy()    # TODO - update board based on action
+        terminal = False  # indicates terminal state
+        next_board = self.board.copy()
+
+        # generate next state
+        if not self.board.is_valid_move(self.player_tile, action[0], action[1]):
+            # TODO - go down the list and get the next best action
+            return -10, self.board, terminal
+        next_board.make_move(self.player_tile, action[0], action[1])
+
         # option to display visuals while learning how to train
         if self.stepper:
             next_board.draw()
             print(next_board.list_to_array())
             print('Reward on step: {0}'.format(reward))
-        self.board = next_board
-        return reward, next_board, done
+        if not next_board.get_valid_moves(self.player_tile) and not next_board.get_valid_moves(self.computer_tile):
+            terminal = True
+            if self.player_score > self.computer_score:
+                reward = 1
+            elif self.player_score < self.computer_score:
+                reward = -1
+            else:
+                reward = 0
+        self.board = next_board.copy()
+        return reward, self.board, terminal
 
     def run_interactive(self):
         print('Welcome to Othello!')
         while True:
             # Reset the board and game.
-            main_board = Board()
+            self.board.reset()
             self.choose_player_tile()
-            showHints = True
+            self.show_hints = True
             if self.player_tile == 'X':
                 turn = 'player'
             else:
@@ -297,28 +331,28 @@ class OthelloGame:
             while True:
                 if turn == 'player':
                     # Player's turn.
-                    if showHints:
-                        valid_moves_board = main_board.copy_with_valid_moves(self.player_tile)
+                    if self.show_hints:
+                        valid_moves_board = self.board.copy_with_valid_moves(self.player_tile)
                         valid_moves_board.draw()
-                        print(main_board.list_to_array())
+                        print(self.board.list_to_array())
                     else:
-                        main_board.draw()
+                        self.board.draw()
 
-                    self.show_points(main_board)
-                    move = self.get_player_move(main_board)
+                    self.show_points()
+                    player_action = self.get_player_action()
 
-                    if move == 'quit':
+                    if player_action == 'quit':
                         print('Thanks for playing!')
                         sys.exit()  # terminate the program
-                    elif move == 'hints':
-                        showHints = not showHints
+                    elif player_action == 'hints':
+                        self.show_hints = not self.show_hints
                         continue
                     else:
-                        main_board.make_move(self.player_tile, move[0], move[1])
+                        self.board.make_move(self.player_tile, player_action[0], player_action[1])
 
-                    if not main_board.get_valid_moves(self.computer_tile):
+                    if not self.board.get_valid_moves(self.computer_tile):
                         print('Your opponent has no legal move. It is your turn.')
-                        if not main_board.get_valid_moves(self.player_tile):
+                        if not self.board.get_valid_moves(self.player_tile):
                             print('You also have no legal move. The game is over.')
                             break
                         pass
@@ -326,39 +360,32 @@ class OthelloGame:
                         turn = 'computer'
                 else:
                     # Computer's turn.
-                    main_board.draw()
-                    self.show_points(main_board)
+                    self.board.draw()
+                    self.show_points()
                     input('Press Enter to see the computer\'s move.\n')
-                    x, y = self.get_computer_move(main_board)
-                    main_board.make_move(self.computer_tile, x, y)
+                    x, y = self.get_computer_move()
+                    self.board.make_move(self.computer_tile, x, y)
 
-                    if not main_board.get_valid_moves(self.player_tile):
+                    if not self.board.get_valid_moves(self.player_tile):
                         print('You have no legal move. It is the computer\'s turn.')
-                        if not main_board.get_valid_moves(self.computer_tile):
-                            print('Your opponent also has no legal move. The game is over')
+                        if not self.board.get_valid_moves(self.computer_tile):
+                            print('Your opponent also has no legal move. The game is over.')
                             break
                         pass
                     else:
                         turn = 'player'
 
             # Display the final score.
-            main_board.draw()
-            scores = main_board.get_score()
+            self.board.draw()
+            scores = self.board.get_score()
             self.player_score = scores[self.player_tile]
             self.computer_score = scores[self.computer_tile]
             margin = self.player_score - self.computer_score
-            print('The player scored %s points. The computer scored %s points.' % (self.player_score, self.computer_score))
+            print('The player scored %s points. The computer scored %s points.' % (
+                self.player_score, self.computer_score))
             if self.player_score > self.computer_score:
                 print('You beat the computer by %s points! Congratulations!' % margin)
-                return self.calculate_reward(1)
             elif self.player_score < self.computer_score:
                 print('You lost. The computer beat you by %s points.' % margin)
-                return self.calculate_reward(-1)
             else:
                 print('The game was a tie!')
-                return self.calculate_reward(0)
-
-
-if __name__ == '__main__':
-    othello = OthelloGame()
-    othello.start()
