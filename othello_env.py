@@ -307,20 +307,15 @@ class OthelloGame:
 
     def step(self, action):
         """
+        action: [x, y]
         :return: reward, next_state, next_state_valid_moves
         """
         reward = 0
         terminal = False  # indicates terminal state
 
-        # attempt to take the action
-        if self.board.is_valid_move(self.player_tile, action[0], action[1]):
-            if self.stepper:
-                print("Action: ", action)
-            self.board.make_move(self.player_tile, action[0], action[1])
-        else:
-            # let the agent choose again if there is a valid choice
-            if self.board.get_valid_moves(self.player_tile):
-                return []
+        # take the action
+        # we should always receive a valid selection from the agent
+        self.board.make_move(self.player_tile, action[0], action[1])
 
         # Now at 1 of 4 options:
         #   1. Game is over                  ->  indicate terminal and exit

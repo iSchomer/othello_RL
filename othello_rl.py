@@ -14,6 +14,7 @@ class OthelloAgent:
     def __init__(self):
         self.state_size = 64
         self.action_size = 64
+        self.tile = 'X'
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> undiscounted
         self.epsilon = .20
@@ -35,18 +36,18 @@ class OthelloAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def get_action(self, state):
+        valid_actions = game.board.get_valid_moves(self.tile)
         if np.random.rand() <= self.epsilon:
-            return [[random.randint(0, 7), random.randint(0, 7)] for _ in range(5)]
-
-        # Take an action based on the Q function
-        act_values = self.model.predict(state)
-
-        # return the indexes of the top 5 highest action value
-        #     ~ using Numpy magic ~
-        act_list = act_values[0].flatten()
-        top_five = np.argpartition(act_list, 5)[-5:]  # returns indexes of 5 highest values, not in order
-        indexes = top_five[np.argsort(act_list[top_five])]  # ordered list of indexes
-        return [list(np.unravel_index(i, shape=(8,8))) for i in indexes]  # index converted to x and y
+            random.shuffle(valid_actions)
+            return valid_actions[0]
+        else:
+            # Take an action based on the Q function
+            all_values = self.model.predict(state)
+            # return the VALID action with the highest network value
+            # use an action_grid that can be indexed by [x, y]
+            action_grid = np.reshape(all_values[0], newshape=(8,8))
+            q_values = [action_grid[v[0], v[1]] for v in valid_actions]
+            return valid_actions[np.argmax(q_values)]
 
     def replay(self, batch_size):
         """
@@ -75,15 +76,17 @@ class OthelloAgent:
 
 
 if __name__ == "__main__":
+    storing = False
     # initialize agent and environment
     agent = OthelloAgent()
     game = OthelloGame(interactive=False, show_steps=False)
 
     # FILENAME CONVENTION
-    #      'saves/
-    save_filename = 'final_project/saves/basic-sequential_rand_2000_2'
-    load_filename = 'final_project/saves/basic-sequential_rand_2000'
-    # agent.load(load_filename + ".h5")
+    #      'saves/NN-type_opponent_num-episodes'
+    if storing:
+        save_filename = 'final_project/saves/basic-sequential_rand_2000_2'
+        load_filename = 'final_project/saves/basic-sequential_rand_2000'
+        agent.load(load_filename + ".h5")
 
     terminal = False
     batch_size = 32
@@ -101,26 +104,8 @@ if __name__ == "__main__":
         help_count = 0
 
         for move in range(100):   # max amount of moves in an episode
-            actions = agent.get_action(state)
-            action = actions[0]
-            acted = False
-            for i in range(5):
-                try:
-                    reward, next_state, terminal = game.step(actions[i])
-                    action = actions[i]
-                    acted = True
-                    break
-                except ValueError:  # for an invalid move
-                    continue
-            if not acted:
-                # give it a random valid move to speed up learning
-                agent_tile = game.player_tile
-                valid_actions = game.board.get_valid_moves(agent_tile)
-                random.shuffle(valid_actions)
-                action = valid_actions[0]
-                reward, next_state, terminal = game.step(action)
-                help_count += 1
-
+            action = agent.get_action(state)
+            reward, next_state, terminal = game.step(action)
             next_state = np.reshape(next_state, [1, 64])
             agent.remember(state, action, reward, next_state, terminal)
             state = next_state
@@ -144,7 +129,7 @@ if __name__ == "__main__":
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
 
-        if e % 100 == 0 and e > 0:
+        if e % 100 == 0 and e > 0 and storing:
             # save name as 'saves/model-type_training-opponent_num-episodes.h5'
             agent.save(save_filename + ".h5")
 
@@ -153,11 +138,12 @@ if __name__ == "__main__":
     print('Runtime: {}.'.format(t_stop-t_start))
 
     # create and save a figure
-    t = [i for i in range(episodes)]
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(t, results_over_time)
-    ax.set_xlabel("Episode")
-    ax.set_title("Percent Wins During Training")
-    plt.savefig(save_filename + '.png')
-    np.save(save_filename + '.npy', results_over_time)
+    if storing:
+        t = [i for i in range(episodes)]
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(t, results_over_time)
+        ax.set_xlabel("Episode")
+        ax.set_title("Percent Wins During Training")
+        plt.savefig(save_filename + '.png')
+        np.save(save_filename + '.npy', results_over_time)
