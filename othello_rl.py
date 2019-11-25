@@ -5,6 +5,8 @@ from collections import deque
 from tensorflow.keras import layers
 from tensorflow.keras.optimizers import SGD
 import random
+from time import process_time
+import matplotlib.pyplot as plt
 
 
 class OthelloAgent:
@@ -14,8 +16,8 @@ class OthelloAgent:
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> undiscounted
         self.epsilon = .10
-        # self.epsilon_min = 0.01
-        # self.epsilon_decay = 0.995
+        self.epsilon_min = 0.0
+        self.epsilon_decay = 0.995
         self.learning_rate = 0.01
         self.model = self.build_model()
 
@@ -55,8 +57,8 @@ class OthelloAgent:
             estimate[0][action] = target
             self.model.fit(state, estimate, epochs=1, verbose=0)
         # optional epsilon decay feature
-        #if self.epsilon > self.epsilon_min:
-        #    self.epsilon *= self.epsilon_decay
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
     def load(self, name):
         self.model.load_weights(name)
@@ -70,19 +72,27 @@ if __name__ == "__main__":
     agent = OthelloAgent()
     game = OthelloGame(interactive=False, show_steps=False)
 
-    # agent.load("final_project/saves/othello_backup_v2")
+    # FILENAME CONVENTION
+    #      'saves/
+    save_filename = 'final_project/saves/basic-sequential_rand_2000'
+    load_filename = 'final_project/saves/basic-sequential_rand_2000'
+    # agent.load(load_filename + ".h5")
+
     terminal = False
     batch_size = 32
-    episodes = 50
+    episodes = 2000
     avg_result = 0
+    results_over_time = np.zeros(episodes)
 
+    # time it
+    t_start = process_time()
     for e in range(episodes):
         game.reset()
         game.start()
         state = game.get_state()  # 8x8 numpy array
         state = np.reshape(state, [1, 64])   # 1x64 vector
 
-        for move in range(800):   # max amount of moves
+        for move in range(100):   # max amount of moves in an episode
             actions = agent.get_action(state)
             action = actions[0]
             acted = False
@@ -115,6 +125,7 @@ if __name__ == "__main__":
                 else:
                     n = 0
                 avg_result += (1/(e+1))*(n - avg_result)
+                results_over_time[e] = avg_result
                 print("episode {}: {} moves, Result: {}, e: {:.2}"
                       .format(e, move, result, agent.epsilon))
                 print("Average win/loss ratio: ", avg_result)
@@ -124,5 +135,20 @@ if __name__ == "__main__":
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
 
-        # if e % 10 == 0:
-            # agent.save("final_project/saves/othello_backup_v2")
+        if e % 100 == 0 and e > 0:
+            # save name as 'saves/model-type_training-opponent_num-episodes.h5'
+            agent.save("final_project/saves/basic-sequential_rand_2000.h5")
+
+    # present the timed results
+    t_stop = process_time()
+    print('Runtime: {}.'.format(t_stop-t_start))
+
+    # create and save a figure
+    t = [i for i in range(episodes)]
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(t, results_over_time)
+    ax.set_xlabel("Episode")
+    ax.set_title("Percent Wins During Training")
+    plt.savefig(save_filename + '.png')
+    np.save(save_filename + '.npy')
