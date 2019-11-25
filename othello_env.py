@@ -187,12 +187,34 @@ class OthelloGame:
         """
         self.board = Board()
         self.player_tile = 'X'
+        self.opponent = opponent
         self.computer_tile = 'O'
         self.player_score = 0
         self.computer_score = 0
         self.interactive = interactive
         self.stepper = show_steps
         self.show_hints = False
+
+        # build the value tables for the opponents
+        # make it a 2D list so indexing matches the board
+        if self.opponent == 'heur':
+            self.comp_v = [[100, -25, 10, 5, 5, 10, -25, 100],
+                            [-25, -25,  2, 2, 2,  2, -25, -25],
+                            [ 10,   2,  5, 1, 1,  5,   2,  10],
+                            [  5,   2,  1, 2, 2,  1,   2,   5],
+                            [  5,   2,  1, 2, 2,  1,   2,   5],
+                            [ 10,   2,  5, 1, 1,  5,   2,  10],
+                            [-25, -25,  2, 2, 2,  2, -25, -25],
+                            [100, -25, 10, 5, 5, 10, -25, 100]]
+        elif self.opponent == 'bench':
+            self.comp_v = [[ 80, -26,  24,  -1,  -5,  28, -18,  76],
+                            [-23, -39, -18,  -9,  -6,  -8, -39,  -1],
+                            [ 46, -16,   4,   1,  -3,   6, -20,  52],
+                            [-13,  -5,   2,  -1,   4,   3, -12,  -2],
+                            [ -5,  -6,   1,  -2,  -3,   0,  -9,  -5],
+                            [ 48, -13,  12,   5,   0,   5, -24,  41],
+                            [-27, -53, -11,  -1, -11, -16, -58, -15],
+                            [ 87, -25,  27,  -1,   5,  36,  -3, 100]]
 
     def reset(self):
         self.board.reset()
@@ -250,15 +272,18 @@ class OthelloGame:
         return [x, y]
 
     def get_computer_move(self):
-        # TODO - add functionality for which opponent is active
         # Given a board and the computer's tile, determine where to
         # move and return that move as a [x, y] list.
         possible_moves = self.board.get_valid_moves(self.computer_tile)
 
         if possible_moves:
-            # randomize the order of the possible moves
-            random.shuffle(possible_moves)
-            return possible_moves[0]
+            if self.opponent == 'rand':
+                # randomize the order of the possible moves
+                random.shuffle(possible_moves)
+                return possible_moves[0]
+            else:
+                best = int(np.argmax([self.comp_v[p[0]][p[1]] for p in possible_moves]))
+                return possible_moves[best]
         else:
             return []
     
@@ -339,11 +364,11 @@ class OthelloGame:
             if self.stepper:
                 print("The agent wins a game!! {} to {}".format(self.player_score, self.computer_score))
         elif self.player_score < self.computer_score:
-            reward = -1
+            reward = 0
             if self.stepper:
                 print("The agent loses to the computer... {} to {}".format(self.player_score, self.computer_score))
         else:
-            reward = 0
+            reward = 0.5
         return reward
 
     def run_interactive(self):
@@ -393,7 +418,8 @@ class OthelloGame:
                     self.board.draw()
                     self.show_points()
                     input('Press Enter to see the computer\'s move.\n')
-                    x, y = self.get_computer_move()
+                    c_move = self.get_computer_move()
+                    x, y, = c_move[0], c_move[1]
                     self.board.make_move(self.computer_tile, x, y)
 
                     if not self.board.get_valid_moves(self.player_tile):
@@ -420,19 +446,8 @@ class OthelloGame:
             else:
                 print('The game was a tie!')
 
-    def dummy(self):
-        computer_moves = self.board.get_valid_moves(self.computer_tile)
-        if not self.board.get_valid_moves(self.player_tile):
-            # option 1 and option 2
-            while computer_moves:
-                comp_action = self.get_computer_move()
-                self.board.make_move(self.computer_tile, comp_action[0], comp_action[1])
-                computer_moves = self.board.get_valid_moves(self.computer_tile)
-            reward = self.calculate_final_reward()
-            terminal = True
-            return reward, self.board.list_to_array(), terminal
-        else:
-            # option 3 and option 4
-            computer_action = self.get_computer_move()
-            if computer_action:
-                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+
+# to test the environment
+if __name__ == '__main__':
+    game = OthelloGame(opponent='heur', interactive=True, show_steps=False)
+    game.start()
