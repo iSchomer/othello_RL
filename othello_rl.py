@@ -17,8 +17,8 @@ class OthelloAgent:
         self.tile = 'X'
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> undiscounted
-        self.epsilon = .10
-        self.epsilon_min = 0.01
+        self.epsilon = 0.1
+        self.epsilon_min = 0.0
         self.epsilon_decay = 0.9995
         self.learning_rate = 0.01
         self.model = self.build_model()
@@ -79,7 +79,7 @@ class OthelloAgent:
 def store_results():
     # present the timed results
     t_stop = process_time()
-    print('Runtime: {}.'.format(t_stop - t_start))
+    print('Runtime: {}hr.'.format((t_stop - t_start)/3600.))
     # create and save a figure
     if storing:
         t = [i for i in range(len(results_over_time))]
@@ -93,8 +93,9 @@ def store_results():
 
 if __name__ == "__main__":
     try:
-        storing = True
-        loading = False
+        storing = False
+        loading = True
+        testing = True
         # initialize agent and environment
         agent = OthelloAgent()
         game = OthelloGame(interactive=False, show_steps=False)
@@ -103,14 +104,14 @@ if __name__ == "__main__":
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
             save_filename = 'final_project/saves/basic-sequential_rand_20000'
-            load_filename = 'final_project/saves/basic-sequential_rand_20000_3'
         if loading:
+            load_filename = 'final_project/saves/basic-sequential_rand_20000'
             agent.load(load_filename + ".h5")
 
         terminal = False
         batch_size = 32
-        episodes = 20000
-        if loading:
+        episodes = 472
+        if loading and not testing:
             prev_data = np.load(load_filename + '.npy')
             avg_result = prev_data[-1]
             episode_start = len(prev_data)

@@ -282,6 +282,7 @@ class OthelloGame:
                 random.shuffle(possible_moves)
                 return possible_moves[0]
             else:
+                # TODO - update so that we choose the best afterstate, not just the best next position
                 best = int(np.argmax([self.comp_v[p[0]][p[1]] for p in possible_moves]))
                 return possible_moves[best]
         else:
@@ -305,6 +306,8 @@ class OthelloGame:
             else:
                 turn = 'computer'
 
+    # TODO - Expand the step() function (or write a second step function) to implement the
+    #       concept of self play (may require self. variables in __init__)
     def step(self, action):
         """
         action: [x, y]
