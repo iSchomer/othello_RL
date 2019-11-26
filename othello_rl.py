@@ -1,4 +1,4 @@
-from final_project.othello_env import OthelloGame
+from othello_env_V2 import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -11,14 +11,16 @@ import matplotlib.pyplot as plt
 
 
 class OthelloAgent:
-    def __init__(self):
+    def __init__(self, episodes):
         self.state_size = 64
         self.action_size = 64
         self.tile = 'X'
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> undiscounted
+        self.episodes = episodes
         self.epsilon = 0.1
         self.epsilon_min = 0.0
+        self.epsilon_step = (self.epsilon - self.epsilon_min)/self.episodes
         self.epsilon_decay = 0.9995
         self.learning_rate = 0.01
         self.model = self.build_model()
@@ -35,9 +37,9 @@ class OthelloAgent:
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def get_action(self, state):
+    def get_action(self, state, testing):
         valid_actions = game.board.get_valid_moves(self.tile)
-        if np.random.rand() <= self.epsilon:
+        if np.random.rand() <= self.epsilon and not testing:
             random.shuffle(valid_actions)
             return valid_actions[0]
         else:
@@ -67,7 +69,7 @@ class OthelloAgent:
         # optional epsilon decay feature
         # TODO - fix this to work properly as linear decay
         if self.epsilon > self.epsilon_min:
-            self.epsilon -= (self.epsilon - self.epsilon_min)/episodes
+            self.epsilon -= self.epsilon_step
 
     def load(self, name):
         self.model.load_weights(name)
@@ -96,8 +98,13 @@ if __name__ == "__main__":
         storing = False
         loading = True
         testing = True
+
+        terminal = False
+        batch_size = 32
+        episodes = 472
+
         # initialize agent and environment
-        agent = OthelloAgent()
+        agent = OthelloAgent(episodes)
         game = OthelloGame(interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
@@ -108,9 +115,6 @@ if __name__ == "__main__":
             load_filename = 'final_project/saves/basic-sequential_rand_20000'
             agent.load(load_filename + ".h5")
 
-        terminal = False
-        batch_size = 32
-        episodes = 472
         if loading and not testing:
             prev_data = np.load(load_filename + '.npy')
             avg_result = prev_data[-1]
@@ -130,7 +134,7 @@ if __name__ == "__main__":
             state = np.reshape(state, [1, 64])   # 1x64 vector
 
             for move in range(100):   # max amount of moves in an episode
-                action = agent.get_action(state)
+                action = agent.get_action(state, testing)
                 reward, next_state, terminal = game.step(action)
                 next_state = np.reshape(next_state, [1, 64])
                 agent.remember(state, action, reward, next_state, terminal)
