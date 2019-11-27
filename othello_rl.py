@@ -49,7 +49,6 @@ class OthelloAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def get_action(self, s):
-        # s = current state as an 8x8 grid
         valid_actions = game.board.get_valid_moves(self.tile)
         if np.random.rand() <= self.epsilon and not testing:
             random.shuffle(valid_actions)
@@ -78,6 +77,8 @@ class OthelloAgent:
             target_NN = self.model.predict(state)
             target_NN[0][action] = target   # only this Q val will be updated
             self.model.fit(state, target_NN, epochs=1, verbose=0)
+
+    def epsilon_decay(self):
         # optional epsilon decay feature
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_step
@@ -175,6 +176,7 @@ if __name__ == "__main__":
                 if len(agent.memory) > batch_size:
                     agent.replay(batch_size)
 
+            agent.epsilon_decay()
             if e % 100 == 0 and e > 0 and storing:
                 # save name as 'saves/model-type_training-opponent_num-episodes.h5'
                 agent.save(save_filename + ".h5")
