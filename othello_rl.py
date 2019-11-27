@@ -11,41 +11,55 @@ import matplotlib.pyplot as plt
 
 
 class OthelloAgent:
-    def __init__(self):
+    def __init__(self, ep, model_type='dense'):
         self.state_size = 64
         self.action_size = 64
         self.tile = 'X'
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> undiscounted
         self.epsilon = 0.1
-        self.epsilon_min = 0.0
-        self.epsilon_decay = 0.9995
-        self.learning_rate = 0.01
+        self.epsilon_min = 0.05
+        self.epsilon_step = (self.epsilon - self.epsilon_min)/ep
+        self.learning_rate = 0.02
+        self.model_type = model_type
         self.model = self.build_model()
 
     def build_model(self):
-        # Feed-forward NN
-        model = tf.keras.Sequential()
         init = RandomUniform(minval=-0.5, maxval=0.5)
-        model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-        model.add(layers.Dense(64, activation='sigmoid'))
+        if self.model_type == 'dense':
+            # Feed-forward NN
+            model = tf.keras.Sequential()
+            model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(64, activation='sigmoid'))
+        else:
+            # convolutional neural network
+            model = tf.keras.Sequential()
+            # convolve to a 6x6 grid
+            model.add(layers.Conv2D(8, kernel_size=3, activation='sigmoid', input_shape=(8, 8, 1),
+                                    kernel_initializer=init))
+            # convolve to a 4x4 grid
+            model.add(layers.Conv2D(3, kernel_size=3, activation='sigmoid', kernel_initializer=init))
+            # add a dense layer
+            model.add(layers.Flatten())
+            model.add(layers.Dense(64, activation='sigmoid'))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def get_action(self, state):
+    def get_action(self, s):
+        # s = current state as an 8x8 grid
         valid_actions = game.board.get_valid_moves(self.tile)
-        if np.random.rand() <= self.epsilon:
+        if np.random.rand() <= self.epsilon and not testing:
             random.shuffle(valid_actions)
             return valid_actions[0]
         else:
             # Take an action based on the Q function
-            all_values = self.model.predict(state)
+            all_values = self.model.predict(s)
             # return the VALID action with the highest network value
             # use an action_grid that can be indexed by [x, y]
-            action_grid = np.reshape(all_values[0], newshape=(8,8))
+            action_grid = np.reshape(all_values[0], newshape=(8, 8))
             q_values = [action_grid[v[0], v[1]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
@@ -65,9 +79,8 @@ class OthelloAgent:
             target_NN[0][action] = target   # only this Q val will be updated
             self.model.fit(state, target_NN, epochs=1, verbose=0)
         # optional epsilon decay feature
-        # TODO - fix this to work properly as linear decay
         if self.epsilon > self.epsilon_min:
-            self.epsilon -= (self.epsilon - self.epsilon_min)/episodes
+            self.epsilon -= self.epsilon_step
 
     def load(self, name):
         self.model.load_weights(name)
@@ -89,28 +102,29 @@ def store_results():
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
         plt.savefig(save_filename + '.png')
+        print('A PNG file containing the run was stored')
 
 
 if __name__ == "__main__":
     try:
-        storing = False
+        episodes = 8000
+        storing = True
         loading = True
-        testing = True
+        testing = False
         # initialize agent and environment
-        agent = OthelloAgent()
+        agent = OthelloAgent(episodes, model_type='cnn')
         game = OthelloGame(interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = 'final_project/saves/basic-sequential_rand_20000'
+            save_filename = 'final_project/saves/cnn_rand_20000_2'
         if loading:
-            load_filename = 'final_project/saves/basic-sequential_rand_20000'
+            load_filename = 'final_project/saves/cnn_rand_12000_2'
             agent.load(load_filename + ".h5")
 
         terminal = False
         batch_size = 32
-        episodes = 472
         if loading and not testing:
             prev_data = np.load(load_filename + '.npy')
             avg_result = prev_data[-1]
@@ -127,12 +141,18 @@ if __name__ == "__main__":
             game.reset()
             game.start()
             state = game.get_state()  # 8x8 numpy array
-            state = np.reshape(state, [1, 64])   # 1x64 vector
+            if agent.model_type == 'dense':
+                state = np.reshape(state, [1, 64])
+            else:
+                state = state.reshape(1, state.shape[0], state.shape[1], 1)
 
             for move in range(100):   # max amount of moves in an episode
                 action = agent.get_action(state)
                 reward, next_state, terminal = game.step(action)
-                next_state = np.reshape(next_state, [1, 64])
+                if agent.model_type == 'dense':
+                    next_state = np.reshape(next_state, [1, 64])
+                else:
+                    next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
                 agent.remember(state, action, reward, next_state, terminal)
                 state = next_state
                 if terminal:
@@ -161,4 +181,7 @@ if __name__ == "__main__":
                 np.save(save_filename + '.npy', results_over_time)
         store_results()
     except KeyboardInterrupt:
+        # change the length of our numpy array to be whatever we stopped at
+        save_data = results_over_time[[i < 100 or r > 0 for i, r in enumerate(results_over_time)]]
+        np.save(save_filename + '.npy', save_data)
         store_results()
