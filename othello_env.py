@@ -21,7 +21,7 @@ class Board:
     def __init__(self):
         self.board = []
         for _ in range(8):
-            self.board.append([' ']*8)
+            self.board.append([' '] * 8)
         self.reset()
 
     def draw(self):
@@ -94,7 +94,7 @@ class Board:
         if len(tiles_to_flip) == 0:  # If no tiles were flipped, this is not a valid move.
             return False
         return tiles_to_flip
-    
+
     def get_valid_moves(self, tile):
         # Returns a list of [x,y] lists of valid moves for the given player on the given board.
         valid_moves = []
@@ -198,23 +198,23 @@ class OthelloGame:
         # build the value tables for the opponents
         # make it a 2D list so indexing matches the board
         if self.opponent == 'heur':
-            self.comp_v = [[100, -25, 10, 5, 5, 10, -25, 100],
-                            [-25, -25,  2, 2, 2,  2, -25, -25],
-                            [ 10,   2,  5, 1, 1,  5,   2,  10],
-                            [  5,   2,  1, 2, 2,  1,   2,   5],
-                            [  5,   2,  1, 2, 2,  1,   2,   5],
-                            [ 10,   2,  5, 1, 1,  5,   2,  10],
-                            [-25, -25,  2, 2, 2,  2, -25, -25],
-                            [100, -25, 10, 5, 5, 10, -25, 100]]
+            self.position_value = [100, -25, 10, 5, 5, 10, -25, 100,
+                                   -25, -25, 2, 2, 2, 2, -25, -25,
+                                   10, 2, 5, 1, 1, 5, 2, 10,
+                                   5, 2, 1, 2, 2, 1, 2, 5,
+                                   5, 2, 1, 2, 2, 1, 2, 5,
+                                   10, 2, 5, 1, 1, 5, 2, 10,
+                                   -25, -25, 2, 2, 2, 2, -25, -25,
+                                   100, -25, 10, 5, 5, 10, -25, 100]
         elif self.opponent == 'bench':
-            self.comp_v = [[ 80, -26,  24,  -1,  -5,  28, -18,  76],
-                            [-23, -39, -18,  -9,  -6,  -8, -39,  -1],
-                            [ 46, -16,   4,   1,  -3,   6, -20,  52],
-                            [-13,  -5,   2,  -1,   4,   3, -12,  -2],
-                            [ -5,  -6,   1,  -2,  -3,   0,  -9,  -5],
-                            [ 48, -13,  12,   5,   0,   5, -24,  41],
-                            [-27, -53, -11,  -1, -11, -16, -58, -15],
-                            [ 87, -25,  27,  -1,   5,  36,  -3, 100]]
+            self.position_value = [80, -26, 24, -1, -5, 28, -18, 76,
+                                   -23, -39, -18, -9, -6, -8, -39, -1,
+                                   46, -16, 4, 1, -3, 6, -20, 52,
+                                   -13, -5, 2, -1, 4, 3, -12, -2,
+                                   -5, -6, 1, -2, -3, 0, -9, -5,
+                                   48, -13, 12, 5, 0, 5, -24, 41,
+                                   -27, -53, -11, -1, -11, -16, -58, -15,
+                                   87, -25, 27, -1, 5, 36, -3, 100]
 
     def reset(self):
         self.board.reset()
@@ -283,15 +283,23 @@ class OthelloGame:
                 return possible_moves[0]
             else:
                 # TODO - update so that we choose the best afterstate, not just the best next position
-                best = int(np.argmax([self.comp_v[p[0]][p[1]] for p in possible_moves]))
+                computer_afterstate_v = []
+                for i in range(len(possible_moves)):
+                    computer_afterstate_v.append(0)
+                    temp_board = self.board.copy()
+                    temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
+                    for j in range(64):
+                        computer_afterstate_v[i] += temp_board.list_to_array()[j % 8][int(j/8)] * self.position_value[j]
+                best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:
             return []
-    
+
     def show_points(self):
         # Prints out the current score.
         scores = self.board.get_score()
-        print('You have %s points. The computer has %s points.' % (scores[self.player_tile], scores[self.computer_tile]))
+        print(
+            'You have %s points. The computer has %s points.' % (scores[self.player_tile], scores[self.computer_tile]))
 
     def start(self):
         if self.interactive:
