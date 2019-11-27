@@ -283,13 +283,13 @@ class OthelloGame:
                 return possible_moves[0]
             else:
                 # TODO - update so that we choose the best afterstate, not just the best next position
-                computer_v = 0
-                for i in range(64):
-                    computer_v += self.board.board[i] * self.position_value[i]
                 computer_afterstate_v = []
-                for j in range(len(possible_moves)):
-                    computer_afterstate_v[j] = computer_v + (possible_moves[j][0] +
-                                                             possible_moves[j][1] * 8) * self.position_value[j]
+                for i in range(len(possible_moves)):
+                    computer_afterstate_v.append(0)
+                    temp_board = self.board.copy()
+                    temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
+                    for j in range(64):
+                        computer_afterstate_v[i] += temp_board.list_to_array()[j % 8][int(j/8)] * self.position_value[j]
                 best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:

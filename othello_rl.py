@@ -1,4 +1,4 @@
-from othello_env_V2 import OthelloGame
+from othello_env import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -21,7 +21,6 @@ class OthelloAgent:
         self.epsilon = 0.1
         self.epsilon_min = 0.0
         self.epsilon_step = (self.epsilon - self.epsilon_min)/self.episodes
-        self.epsilon_decay = 0.9995
         self.learning_rate = 0.01
         self.model = self.build_model()
 
@@ -66,6 +65,8 @@ class OthelloAgent:
             target_NN = self.model.predict(state)
             target_NN[0][action] = target   # only this Q val will be updated
             self.model.fit(state, target_NN, epochs=1, verbose=0)
+
+    def epsilon_decay(self):
         # optional epsilon decay feature
         # TODO - fix this to work properly as linear decay
         if self.epsilon > self.epsilon_min:
@@ -96,23 +97,23 @@ def store_results():
 if __name__ == "__main__":
     try:
         storing = False
-        loading = True
-        testing = True
+        loading = False
+        testing = False
 
         terminal = False
         batch_size = 32
-        episodes = 472
+        episodes = 200
 
         # initialize agent and environment
         agent = OthelloAgent(episodes)
-        game = OthelloGame(interactive=False, show_steps=False)
+        game = OthelloGame(opponent='rand', interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = 'final_project/saves/basic-sequential_rand_20000'
+            save_filename = 'othello_RL/saves/basic-sequential_rand_20000'
         if loading:
-            load_filename = 'final_project/saves/basic-sequential_rand_20000'
+            load_filename = 'othello_RL/saves/basic-sequential_rand_20000'
             agent.load(load_filename + ".h5")
 
         if loading and not testing:
@@ -159,6 +160,7 @@ if __name__ == "__main__":
                 if len(agent.memory) > batch_size:
                     agent.replay(batch_size)
 
+            agent.epsilon_decay()
             if e % 100 == 0 and e > 0 and storing:
                 # save name as 'saves/model-type_training-opponent_num-episodes.h5'
                 agent.save(save_filename + ".h5")
