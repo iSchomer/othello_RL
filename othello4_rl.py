@@ -29,7 +29,7 @@ class OthelloAgent:
         model = tf.keras.Sequential()
         init = RandomUniform(minval=-0.5, maxval=0.5)
         model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-        model.add(layers.Dense(16, activation='sigmoid'))
+        model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
@@ -47,7 +47,7 @@ class OthelloAgent:
             # return the VALID action with the highest network value
             # use an action_grid that can be indexed by [x, y]
             action_grid = np.reshape(all_values[0], newshape=(4, 4))
-            q_values = [action_grid[v[0], v[1]] for v in valid_actions]
+            q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
     def replay(self, batch_size):
@@ -63,12 +63,11 @@ class OthelloAgent:
                 target = reward + self.gamma * \
                          np.amax(self.model.predict(next_state)[0])
             target_NN = self.model.predict(state)
-            target_NN[0][action] = target   # only this Q val will be updated
+            target_NN[0][action[1]*4+action[0]] = target   # only this Q val will be updated
             self.model.fit(state, target_NN, epochs=1, verbose=0)
 
     def epsilon_decay(self):
-        # optional epsilon decay feature
-        # TODO - fix this to work properly as linear decay
+        # linear epsilon decay feature
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_step
 
@@ -131,7 +130,7 @@ if __name__ == "__main__":
         for e in range(episode_start, episode_start + episodes):
             game.reset()
             game.start()
-            state = game.get_state()  # 6x6 numpy array
+            state = game.get_state()  # 4x4 numpy array
             state = np.reshape(state, [1, 16])   # 1x16 vector
 
             for move in range(100):   # max amount of moves in an episode
