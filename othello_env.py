@@ -314,8 +314,6 @@ class OthelloGame:
             else:
                 turn = 'computer'
 
-    # TODO - Expand the step() function (or write a second step function) to implement the
-    #       concept of self play (may require self. variables in __init__)
     def step(self, action):
         """
         action: [x, y]
@@ -333,29 +331,32 @@ class OthelloGame:
         #   2. Computer is now out of moves  ->  exit and let agent choose again
         #   3. Agent is now out of moves     ->  Let computer take a move
         #   4. Both still have moves         ->  let computer take 1 move
-        computer_moves = self.board.get_valid_moves(self.computer_tile)
-        if not computer_moves:
-            # options 1 and 2
-            if not self.board.get_valid_moves(self.player_tile):
-                # option 1 - game over
-                reward = self.calculate_final_reward()
-                terminal = True
-                if self.stepper:
-                    self.board.draw()
-                return reward, self.board.list_to_array(), terminal
+        while terminal is False:
+            computer_moves = self.board.get_valid_moves(self.computer_tile)
+            if not computer_moves:
+                # options 1 and 2
+                if not self.board.get_valid_moves(self.player_tile):
+                    # option 1 - game over
+                    reward = self.calculate_final_reward()
+                    terminal = True
+                    if self.stepper:
+                        self.board.draw()
+                    return reward, self.board.list_to_array(), terminal
+                else:
+                    # option 2 - return current state so agent can go again
+                    if self.stepper:
+                        self.board.draw()
+                    return reward, self.board.list_to_array(), terminal
             else:
-                # option 2 - return current state so agent can go again
-                if self.stepper:
-                    self.board.draw()
-                return reward, self.board.list_to_array(), terminal
-        else:
-            # options 3 and 4
-            computer_action = self.get_computer_move()
-            self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+                # options 3 and 4
+                computer_action = self.get_computer_move()
+                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+                if self.board.get_valid_moves(self.player_tile):
+                    break
 
         # check if the computer ended the game
         if not self.board.get_valid_moves(self.player_tile) and \
-                not self.board.get_valid_moves(self.player_tile):
+                not self.board.get_valid_moves(self.computer_tile):
             terminal = True
             reward = self.calculate_final_reward()
         if self.stepper:

@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 from collections import deque
 from tensorflow.keras import layers
-from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.initializers import RandomUniform
 import random
 from time import process_time
@@ -35,14 +35,12 @@ class OthelloAgent:
             # convolutional neural network
             model = tf.keras.Sequential()
             # convolve to a 6x6 grid
-            model.add(layers.Conv2D(8, kernel_size=3, activation='sigmoid', input_shape=(8, 8, 1),
-                                    kernel_initializer=init))
-            # convolve to a 4x4 grid
-            model.add(layers.Conv2D(3, kernel_size=3, activation='sigmoid', kernel_initializer=init))
-            # add a dense layer
+            model.add(layers.Conv2D(8, kernel_size=3, activation='relu', input_shape=(8, 8, 1)))
             model.add(layers.Flatten())
+            model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            # add a dense layer
             model.add(layers.Dense(64, activation='sigmoid'))
-        model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
+        model.compile(loss='mse', optimizer=Adam())
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -108,9 +106,9 @@ def store_results():
 
 if __name__ == "__main__":
     try:
-        episodes = 8000
-        storing = True
-        loading = True
+        episodes = 500
+        storing = False
+        loading = False
         testing = False
         # initialize agent and environment
         agent = OthelloAgent(episodes, model_type='cnn')
@@ -154,7 +152,8 @@ if __name__ == "__main__":
                     next_state = np.reshape(next_state, [1, 64])
                 else:
                     next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
-                agent.remember(state, action, reward, next_state, terminal)
+                if not testing:
+                    agent.remember(state, action, reward, next_state, terminal)
                 state = next_state
                 if terminal:
                     # terminal reward is 0 for loss, 0.5 for tie, 1 for win
@@ -173,7 +172,7 @@ if __name__ == "__main__":
                     break
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
-                if len(agent.memory) > batch_size:
+                if len(agent.memory) > batch_size and not testing:
                     agent.replay(batch_size)
 
             agent.epsilon_decay()
