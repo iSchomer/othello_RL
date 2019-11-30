@@ -28,8 +28,8 @@ class OthelloAgent:
         # Feed-forward NN
         model = tf.keras.Sequential()
         init = RandomUniform(minval=-0.5, maxval=0.5)
-        model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-        model.add(layers.Dense(36, activation='sigmoid'))
+        model.add(layers.Dense(30, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+        model.add(layers.Dense(36, activation='sigmoid', kernel_initializer=init))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
@@ -47,7 +47,7 @@ class OthelloAgent:
             # return the VALID action with the highest network value
             # use an action_grid that can be indexed by [x, y]
             action_grid = np.reshape(all_values[0], newshape=(6, 6))
-            q_values = [action_grid[v[0], v[1]] for v in valid_actions]
+            q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
     def replay(self, batch_size):
@@ -63,12 +63,11 @@ class OthelloAgent:
                 target = reward + self.gamma * \
                          np.amax(self.model.predict(next_state)[0])
             target_NN = self.model.predict(state)
-            target_NN[0][action] = target   # only this Q val will be updated
+            target_NN[0][action[1]*6+action[0]] = target   # only this Q val will be updated
             self.model.fit(state, target_NN, epochs=1, verbose=0)
 
     def epsilon_decay(self):
-        # optional epsilon decay feature
-        # TODO - fix this to work properly as linear decay
+        # linear epsilon decay feature
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_step
 
@@ -85,24 +84,35 @@ def store_results():
     print('Runtime: {}hr.'.format((t_stop - t_start)/3600.))
     # create and save a figure
     if storing:
-        t = [i for i in range(len(results_over_time))]
+        t1 = [i for i in range(len(results_over_time))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t, results_over_time)
+        ax.plot(t1, results_over_time)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
-        plt.savefig(save_filename + '.png')
+        plt.savefig(save_filename + 'training' + '.png')
+
+        t2 = [i for i in range(len(test_result))]
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(t2, test_result)
+        ax.set_xlabel("Episode")
+        ax.set_title("Percent Wins During Testing")
+        plt.savefig(save_filename + 'testing' + '.png')
 
 
 if __name__ == "__main__":
     try:
-        storing = False
+        storing = True
         loading = False
         testing = False
 
         terminal = False
         batch_size = 32
-        episodes = 20000
+        episodes = 2000
+
+        test_interval = 200
+        test_length = 20
 
         # initialize agent and environment
         agent = OthelloAgent(episodes)
@@ -111,9 +121,9 @@ if __name__ == "__main__":
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = 'othello_RL/saves/basic-sequential_rand_20000'
+            save_filename = './saves/basic-sequential_rand_20000'
         if loading:
-            load_filename = 'othello_RL/saves/basic-sequential_rand_20000'
+            load_filename = './saves/basic-sequential_rand_20000'
             agent.load(load_filename + ".h5")
 
         if loading and not testing:
@@ -126,13 +136,21 @@ if __name__ == "__main__":
             results_over_time = np.zeros(episodes)
             episode_start = 0
 
+            test_result = []
+
         # time it
         t_start = process_time()
         for e in range(episode_start, episode_start + episodes):
             game.reset()
             game.start()
-            state = game.get_state()  # 6x6 numpy array
-            state = np.reshape(state, [1, 36])   # 1x36 vector
+            state = game.get_state()  # 4x4 numpy array
+            state = np.reshape(state, [1, 36])   # 1x16 vector
+
+            # perform a 500-episode test with greedy policy
+            if e % test_interval == 0:
+                testing = True
+            if e % test_interval == test_length:
+                testing = False
 
             for move in range(100):   # max amount of moves in an episode
                 action = agent.get_action(state, testing)
@@ -149,11 +167,22 @@ if __name__ == "__main__":
                         n = 1
                     else:
                         n = 0
-                    avg_result += (1/(e+1))*(n - avg_result)
-                    results_over_time[e] = avg_result
-                    print("episode {}: {} moves, Result: {}, e: {:.2}"
-                          .format(e, move, result, agent.epsilon))
-                    print("Average win/loss ratio: ", avg_result)
+
+                    if testing:
+                        if e % test_interval == 0:
+                            test_result.append(0)
+                        test_result[-1] += (1/(e % test_interval + 1))*(n - test_result[-1])
+                        results_over_time[e] = avg_result
+                    else:
+                        avg_result += (1/(e+1))*(n - avg_result)
+                        results_over_time[e] = avg_result
+
+                    if e % 10 == 0 and e > 0:
+                        if testing:
+                            print('testing')
+                        print("episode {}: {} moves, Result: {}, e: {:.2}"
+                              .format(e, move, result, agent.epsilon))
+                        print("Average win/loss ratio: ", avg_result)
                     break
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
@@ -161,10 +190,11 @@ if __name__ == "__main__":
                     agent.replay(batch_size)
 
             agent.epsilon_decay()
-            if e % 100 == 0 and e > 0 and storing:
-                # save name as 'saves/model-type_training-opponent_num-episodes.h5'
-                agent.save(save_filename + ".h5")
-                np.save(save_filename + '.npy', results_over_time)
+            if e % 100 == 0 and e > 0:
+                if storing:
+                    # save name as 'saves/model-type_training-opponent_num-episodes.h5'
+                    agent.save(save_filename + ".h5")
+                    np.save(save_filename + '.npy', results_over_time)
         store_results()
     except KeyboardInterrupt:
         store_results()

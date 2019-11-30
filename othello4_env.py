@@ -289,7 +289,8 @@ class OthelloGame:
                     temp_board = self.board.copy()
                     temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
                     for j in range(16):
-                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j/4)][j % 4] * self.position_value[j]
+                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j / 4)][j % 4] * self.position_value[
+                            j]
                 best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:
@@ -333,29 +334,32 @@ class OthelloGame:
         #   2. Computer is now out of moves  ->  exit and let agent choose again
         #   3. Agent is now out of moves     ->  Let computer take a move
         #   4. Both still have moves         ->  let computer take 1 move
-        computer_moves = self.board.get_valid_moves(self.computer_tile)
-        if not computer_moves:
-            # options 1 and 2
-            if not self.board.get_valid_moves(self.player_tile):
-                # option 1 - game over
-                reward = self.calculate_final_reward()
-                terminal = True
-                if self.stepper:
-                    self.board.draw()
-                return reward, self.board.list_to_array(), terminal
+        while terminal is False:
+            computer_moves = self.board.get_valid_moves(self.computer_tile)
+            if not computer_moves:
+                # options 1 and 2
+                if not self.board.get_valid_moves(self.player_tile):
+                    # option 1 - game over
+                    reward = self.calculate_final_reward()
+                    terminal = True
+                    if self.stepper:
+                        self.board.draw()
+                    return reward, self.board.list_to_array(), terminal
+                else:
+                    # option 2 - return current state so agent can go again
+                    if self.stepper:
+                        self.board.draw()
+                    return reward, self.board.list_to_array(), terminal
             else:
-                # option 2 - return current state so agent can go again
-                if self.stepper:
-                    self.board.draw()
-                return reward, self.board.list_to_array(), terminal
-        else:
-            # options 3 and 4
-            computer_action = self.get_computer_move()
-            self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+                # options 3 and 4
+                computer_action = self.get_computer_move()
+                self.board.make_move(self.computer_tile, computer_action[0], computer_action[1])
+                if self.board.get_valid_moves(self.player_tile):
+                    break
 
         # check if the computer ended the game
         if not self.board.get_valid_moves(self.player_tile) and \
-                not self.board.get_valid_moves(self.player_tile):
+                not self.board.get_valid_moves(self.computer_tile):
             terminal = True
             reward = self.calculate_final_reward()
         if self.stepper:
@@ -455,5 +459,5 @@ class OthelloGame:
 
 # to test the environment
 if __name__ == '__main__':
-    game = OthelloGame(opponent='heur', interactive=True, show_steps=False)
+    game = OthelloGame(opponent='rand', interactive=True, show_steps=False)
     game.start()
