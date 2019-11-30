@@ -121,9 +121,9 @@ if __name__ == "__main__":
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = './saves/basic-sequential_rand_20000'
+            save_filename = './saves/othello8_basic-sequential_rand_2000'
         if loading:
-            load_filename = './saves/basic-sequential_rand_20000'
+            load_filename = './saves/othello8_basic-sequential_rand_2000'
             agent.load(load_filename + ".h5")
 
         if loading and not testing:
