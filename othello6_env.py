@@ -13,7 +13,7 @@ def is_on_board(x, y):
 
 def is_on_corner(x, y):
     # Returns True if the position is in one of the four corners.
-    return (x == 0 and y == 0) or (x == 3 and y == 0) or (x == 0 and y == 3) or (x == 3 and y == 3)
+    return (x == 0 and y == 0) or (x == 5 and y == 0) or (x == 0 and y == 5) or (x == 5 and y == 5)
 
 
 class Board:
@@ -282,15 +282,13 @@ class OthelloGame:
                 random.shuffle(possible_moves)
                 return possible_moves[0]
             else:
-                # TODO - update so that we choose the best afterstate, not just the best next position
                 computer_afterstate_v = []
                 for i in range(len(possible_moves)):
                     computer_afterstate_v.append(0)
                     temp_board = self.board.copy()
                     temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
                     for j in range(36):
-                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j / 6)][j % 6] * self.position_value[
-                            j]
+                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j/6)][j % 6] * self.position_value[j]
                 best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:
@@ -357,11 +355,13 @@ class OthelloGame:
                 if self.board.get_valid_moves(self.player_tile):
                     break
 
+        # Failsafe
         # check if the computer ended the game
-        if not self.board.get_valid_moves(self.player_tile) and \
-                not self.board.get_valid_moves(self.computer_tile):
-            terminal = True
-            reward = self.calculate_final_reward()
+        # if not self.board.get_valid_moves(self.player_tile) and \
+        #         not self.board.get_valid_moves(self.computer_tile):
+        #     print("We should never see this!")
+        #     terminal = True
+        #     reward = self.calculate_final_reward()
         if self.stepper:
             self.board.draw()
         return reward, self.board.list_to_array(), terminal

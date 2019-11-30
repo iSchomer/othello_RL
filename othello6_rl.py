@@ -11,13 +11,13 @@ import matplotlib.pyplot as plt
 
 
 class OthelloAgent:
-    def __init__(self, episodes):
+    def __init__(self, ep):
         self.state_size = 36
         self.action_size = 36
         self.tile = 'X'
         self.memory = deque(maxlen=2000)
-        self.gamma = 1.0  # episodic --> undiscounted
-        self.episodes = episodes
+        self.gamma = 1.0  # episodic --> no discount
+        self.episodes = ep
         self.epsilon = 0.1
         self.epsilon_min = 0.0
         self.epsilon_step = (self.epsilon - self.epsilon_min)/self.episodes
@@ -33,38 +33,38 @@ class OthelloAgent:
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def remember(self, st, act, rw, next_st, done):
+        self.memory.append((st, act, rw, next_st, done))
 
-    def get_action(self, state, testing):
+    def get_action(self, st, test):
         valid_actions = game.board.get_valid_moves(self.tile)
-        if np.random.rand() <= self.epsilon and not testing:
+        if np.random.rand() <= self.epsilon and not test:
             random.shuffle(valid_actions)
             return valid_actions[0]
         else:
             # Take an action based on the Q function
-            all_values = self.model.predict(state)
+            all_values = self.model.predict(st)
             # return the VALID action with the highest network value
             # use an action_grid that can be indexed by [x, y]
             action_grid = np.reshape(all_values[0], newshape=(6, 6))
             q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
-    def replay(self, batch_size):
+    def replay(self, bat_size):
         """
-        Perform backpropogation using stochastic gradient descent.
+        Perform back-propagation using stochastic gradient descent.
         Only want to update the state-action pair that is selected (the target for all
                  other actions are set to the NN estimate so that the estimate is zero)
         """
-        minibatch = random.sample(self.memory, batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            target = reward
+        mini_batch = random.sample(self.memory, bat_size)
+        for st, act, rw, next_st, done in mini_batch:
+            target = rw
             if not done:
-                target = reward + self.gamma * \
-                         np.amax(self.model.predict(next_state)[0])
-            target_NN = self.model.predict(state)
-            target_NN[0][action[1]*6+action[0]] = target   # only this Q val will be updated
-            self.model.fit(state, target_NN, epochs=1, verbose=0)
+                target = rw + self.gamma * \
+                         np.amax(self.model.predict(next_st)[0])
+            target_nn = self.model.predict(st)
+            target_nn[0][act[1]*6+act[0]] = target   # only this Q val will be updated
+            self.model.fit(st, target_nn, epochs=1, verbose=0)
 
     def epsilon_decay(self):
         # linear epsilon decay feature
@@ -143,8 +143,8 @@ if __name__ == "__main__":
         for e in range(episode_start, episode_start + episodes):
             game.reset()
             game.start()
-            state = game.get_state()  # 4x4 numpy array
-            state = np.reshape(state, [1, 36])   # 1x16 vector
+            state = game.get_state()  # 6x6 numpy array
+            state = np.reshape(state, [1, 36])   # 1x36 vector
 
             # perform a 500-episode test with greedy policy
             if e % test_interval == 0:
@@ -190,11 +190,13 @@ if __name__ == "__main__":
                     agent.replay(batch_size)
 
             agent.epsilon_decay()
-            if e % 100 == 0 and e > 0:
-                if storing:
-                    # save name as 'saves/model-type_training-opponent_num-episodes.h5'
-                    agent.save(save_filename + ".h5")
-                    np.save(save_filename + '.npy', results_over_time)
+            if e % 100 == 0 and e > 0 and storing:
+                # save name as 'saves/model-type_training-opponent_num-episodes.h5'
+                agent.save(save_filename + ".h5")
+                np.save(save_filename + '.npy', results_over_time)
         store_results()
     except KeyboardInterrupt:
+        # change the length of our numpy array to be whatever we stopped at
+        save_data = results_over_time[[i < 100 or r > 0 for i, r in enumerate(results_over_time)]]
+        np.save(save_filename + '.npy', save_data)
         store_results()

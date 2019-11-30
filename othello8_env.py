@@ -8,46 +8,46 @@ import numpy as np
 # static methods
 def is_on_board(x, y):
     # Returns True if the coordinates are located on the board.
-    return 0 <= x <= 3 and 0 <= y <= 3
+    return 0 <= x <= 7 and 0 <= y <= 7
 
 
 def is_on_corner(x, y):
     # Returns True if the position is in one of the four corners.
-    return (x == 0 and y == 0) or (x == 3 and y == 0) or (x == 0 and y == 3) or (x == 3 and y == 3)
+    return (x == 0 and y == 0) or (x == 7 and y == 0) or (x == 0 and y == 7) or (x == 7 and y == 7)
 
 
 class Board:
 
     def __init__(self):
         self.board = []
-        for _ in range(4):
-            self.board.append([' '] * 4)
+        for _ in range(8):
+            self.board.append([' '] * 8)
         self.reset()
 
     def draw(self):
 
-        h_line = '  +----+----+----+----+'
+        h_line = '  +----+----+----+----+----+----+----+----+'
 
-        print('     1    2    3    4')
+        print('     1    2    3    4    5    6    7    8')
         print(h_line)
-        for y in range(4):
+        for y in range(8):
             print(y + 1, end=' ')
-            for x in range(4):
+            for x in range(8):
                 print('| %s' % (self.board[x][y]), end='  ')
             print('|')
             print(h_line)
 
     def reset(self):
         # Blanks out the board it is passed, except for the original starting position.
-        for x in range(4):
-            for y in range(4):
+        for x in range(8):
+            for y in range(8):
                 self.board[x][y] = ' '
 
         # Starting pieces: X = black, O = white.
-        self.board[1][1] = 'X'
-        self.board[1][2] = 'O'
-        self.board[2][1] = 'O'
-        self.board[2][2] = 'X'
+        self.board[3][3] = 'X'
+        self.board[3][4] = 'O'
+        self.board[4][3] = 'O'
+        self.board[4][4] = 'X'
 
     def is_valid_move(self, tile, x_start, y_start):
         # Returns False if the player's move on space x_start, y_start is invalid.
@@ -99,8 +99,8 @@ class Board:
         # Returns a list of [x,y] lists of valid moves for the given player on the given board.
         valid_moves = []
 
-        for x in range(4):
-            for y in range(4):
+        for x in range(8):
+            for y in range(8):
                 if self.is_valid_move(tile, x, y):
                     valid_moves.append([x, y])
         return valid_moves
@@ -109,8 +109,8 @@ class Board:
         # Determine the score by counting the tiles. Returns a dictionary with keys 'X' and 'O'.
         x_score = 0
         o_score = 0
-        for x in range(4):
-            for y in range(4):
+        for x in range(8):
+            for y in range(8):
                 if self.board[x][y] == 'X':
                     x_score += 1
                 elif self.board[x][y] == 'O':
@@ -134,8 +134,8 @@ class Board:
         # Make a duplicate of the board list and return the duplicate.
         dupe_board = Board()
 
-        for x in range(4):
-            for y in range(4):
+        for x in range(8):
+            for y in range(8):
                 dupe_board.board[x][y] = self.board[x][y]
 
         return dupe_board
@@ -150,9 +150,9 @@ class Board:
         return dupe_board
 
     def list_to_array(self):
-        state = np.zeros((4, 4))
-        for i in range(4):
-            for j in range(4):
+        state = np.zeros((8, 8))
+        for i in range(8):
+            for j in range(8):
                 if self.board[j][i] == 'X':
                     state[i, j] = 1
                 elif self.board[j][i] == 'O':
@@ -162,8 +162,8 @@ class Board:
         return state
 
     def array_to_list(self, state):
-        for i in range(4):
-            for j in range(4):
+        for i in range(8):
+            for j in range(8):
                 if state[i, j] == 1:
                     self.board[j][i] = 'X'
                 elif state[i, j] == -1:
@@ -247,7 +247,7 @@ class OthelloGame:
     def get_player_action(self):
         # Let the player type in their move given a board state.
         # Returns the move as [x, y] (or returns the strings 'hints' or 'quit')
-        valid_digits = '1 2 3 4'.split()
+        valid_digits = '1 2 3 4 5 6 7 8'.split()
         while True:
             print('Enter your move, or type quit to end the game, or hints to turn off/on hints.')
             player_action = input().lower()
@@ -266,8 +266,8 @@ class OthelloGame:
                 else:
                     break
             else:
-                print('That is not a valid move. Type the x digit (1-4), then the y digit (1-4).')
-                print('For example, 41 will be the top-right corner.')
+                print('That is not a valid move. Type the x digit (1-8), then the y digit (1-8).')
+                print('For example, 81 will be the top-right corner.')
 
         return [x, y]
 
@@ -282,15 +282,13 @@ class OthelloGame:
                 random.shuffle(possible_moves)
                 return possible_moves[0]
             else:
-                # TODO - update so that we choose the best afterstate, not just the best next position
                 computer_afterstate_v = []
                 for i in range(len(possible_moves)):
                     computer_afterstate_v.append(0)
                     temp_board = self.board.copy()
                     temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
-                    for j in range(16):
-                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j / 4)][j % 4] * self.position_value[
-                            j]
+                    for j in range(64):
+                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j/8)][j % 8] * self.position_value[j]
                 best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:
@@ -357,11 +355,13 @@ class OthelloGame:
                 if self.board.get_valid_moves(self.player_tile):
                     break
 
+        # Failsafe
         # check if the computer ended the game
-        if not self.board.get_valid_moves(self.player_tile) and \
-                not self.board.get_valid_moves(self.computer_tile):
-            terminal = True
-            reward = self.calculate_final_reward()
+        # if not self.board.get_valid_moves(self.player_tile) and \
+        #         not self.board.get_valid_moves(self.computer_tile):
+        #     print("We should never see this!")
+        #     terminal = True
+        #     reward = self.calculate_final_reward()
         if self.stepper:
             self.board.draw()
         return reward, self.board.list_to_array(), terminal
