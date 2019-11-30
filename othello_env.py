@@ -282,7 +282,6 @@ class OthelloGame:
                 random.shuffle(possible_moves)
                 return possible_moves[0]
             else:
-                # TODO - update so that we choose the best afterstate, not just the best next position
                 computer_afterstate_v = []
                 for i in range(len(possible_moves)):
                     computer_afterstate_v.append(0)
@@ -354,11 +353,13 @@ class OthelloGame:
                 if self.board.get_valid_moves(self.player_tile):
                     break
 
+        # Failsafe
         # check if the computer ended the game
-        if not self.board.get_valid_moves(self.player_tile) and \
-                not self.board.get_valid_moves(self.computer_tile):
-            terminal = True
-            reward = self.calculate_final_reward()
+        # if not self.board.get_valid_moves(self.player_tile) and \
+        #         not self.board.get_valid_moves(self.computer_tile):
+        #     print("We should never see this!")
+        #     terminal = True
+        #     reward = self.calculate_final_reward()
         if self.stepper:
             self.board.draw()
         return reward, self.board.list_to_array(), terminal
