@@ -1,7 +1,7 @@
-from othello6_env import OthelloGame
-import tensorflow as tf
+from othello6_env import OthelloGame, Board
 import numpy as np
 from collections import deque
+import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.initializers import RandomUniform
@@ -51,7 +51,7 @@ class OthelloAgent:
             q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
-    def replay(self, bat_size, valid_actions):
+    def replay(self, bat_size, player_tile):
         """
         Perform back-propagation using stochastic gradient descent.
         Only want to update the state-action pair that is selected (the target for all
@@ -63,6 +63,10 @@ class OthelloAgent:
             if not done:
                 all_values = self.model.predict(next_st)
                 action_grid = np.reshape(all_values[0], newshape=(6, 6))
+
+                temp_board = Board()
+                temp_board.array_to_list(np.reshape(st, newshape=(6, 6)))
+                valid_actions = temp_board.get_valid_moves(self.tile)
                 q_values = [action_grid[v[1], v[0]] for v in valid_actions]
                 target = rw + self.gamma * np.amax(q_values)
             target_nn = self.model.predict(st)
@@ -213,7 +217,7 @@ if __name__ == "__main__":
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
                 if move_counter % batch_size == 0:  # if len(agent.memory) > batch_size:
-                    agent.replay(batch_size, game.board.get_valid_moves(game.player_tile))
+                    agent.replay(batch_size, game.player_tile)
 
             agent.epsilon_decay()
             if e % 100 == 0 and e > 0 and storing:

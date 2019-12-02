@@ -162,14 +162,14 @@ class Board:
         return state
 
     def array_to_list(self, state):
-        for i in range(6):
-            for j in range(6):
-                if state[i, j] == 1:
-                    self.board[j][i] = 'X'
-                elif state[i, j] == -1:
-                    self.board[j][i] = 'O'
+        for y in range(6):
+            for x in range(6):
+                if state[y, x] == 1:
+                    self.board[x][y] = 'X'
+                elif state[y, x] == -1:
+                    self.board[x][y] = 'O'
                 else:
-                    self.board[j][i] = ' '
+                    self.board[x][y] = ' '
         return self.board
 
 
