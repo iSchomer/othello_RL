@@ -65,7 +65,7 @@ class OthelloAgent:
                 action_grid = np.reshape(all_values[0], newshape=(6, 6))
 
                 temp_board = Board()
-                temp_board.array_to_list(np.reshape(st, newshape=(6, 6)))
+                temp_board.array_to_list(np.reshape(next_st, newshape=(6, 6)))
                 valid_actions = temp_board.get_valid_moves(self.tile)
                 q_values = [action_grid[v[1], v[0]] for v in valid_actions]
                 target = rw + self.gamma * np.amax(q_values)
