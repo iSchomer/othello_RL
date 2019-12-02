@@ -8,7 +8,7 @@ import numpy as np
 # static methods
 def is_on_board(x, y):
     # Returns True if the coordinates are located on the board.
-    return 0 <= x <= 3 and 0 <= y <= 3
+    return 0 <= x <= 5 and 0 <= y <= 5
 
 
 def is_on_corner(x, y):
