@@ -1,4 +1,4 @@
-from othello8_env import OthelloGame
+from othello4_env import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
