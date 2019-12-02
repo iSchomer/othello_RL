@@ -340,12 +340,12 @@ class OthelloGame:
                     terminal = True
                     if self.stepper:
                         self.board.draw()
-                    return reward, self.board.list_to_array(), terminal
+                    return reward, self.board.list_to_array(), [],  terminal
                 else:
                     # option 2 - return current state so agent can go again
                     if self.stepper:
                         self.board.draw()
-                    return reward, self.board.list_to_array(), terminal
+                    return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal
             else:
                 # options 3 and 4
                 computer_action = self.get_computer_move()
@@ -362,7 +362,7 @@ class OthelloGame:
         #     reward = self.calculate_final_reward()
         if self.stepper:
             self.board.draw()
-        return reward, self.board.list_to_array(), terminal
+        return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal
 
     def calculate_final_reward(self):
         scores = self.board.get_score()

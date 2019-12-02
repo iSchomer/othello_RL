@@ -1,4 +1,4 @@
-from othello6_env import OthelloGame, Board
+from final_project.othello6_env import OthelloGame
 import numpy as np
 from collections import deque
 import tensorflow as tf
@@ -12,7 +12,7 @@ from datetime import datetime
 
 
 class OthelloAgent:
-    def __init__(self, ep):
+    def __init__(self, ep, model_type='dense'):
         self.state_size = 36
         self.action_size = 36
         self.tile = 'X'
@@ -20,18 +20,29 @@ class OthelloAgent:
         self.gamma = 1.0  # episodic --> no discount
         self.episodes = ep
         self.epsilon = 0.1
-        self.epsilon_min = 0.0
+        self.epsilon_min = 0.00
         self.epsilon_step = (self.epsilon - self.epsilon_min)/self.episodes
         self.learning_rate = 0.01
+        self.model_type = model_type
         self.model = self.build_model()
 
     def build_model(self):
-        # Feed-forward NN
-        model = tf.keras.Sequential()
         init = RandomUniform(minval=-0.5, maxval=0.5)
-        model.add(layers.Dense(30, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-        model.add(layers.Dense(36, activation='sigmoid', kernel_initializer=init))
-        model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
+        if self.model_type == 'dense':
+            # Feed-forward NN
+            model = tf.keras.Sequential()
+            model.add(layers.Dense(30, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(36, activation='sigmoid', kernel_initializer=init))
+        else:
+            # convolutional neural network
+            model = tf.keras.Sequential()
+            # convolve to a 6x6 grid
+            model.add(layers.Conv2D(16, kernel_size=3, activation='relu', input_shape=(8, 8, 1)))
+            model.add(layers.Flatten())
+            # add a dense layer
+            model.add(layers.Dense(40, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(64, activation='sigmoid', kernel_initializer=init))
+        model.compile(loss='mse', optimizer=SGD(learning_rate=self.learning_rate))
         return model
 
     def remember(self, st, act, rw, next_st, vld_moves, done):
@@ -83,16 +94,16 @@ class OthelloAgent:
         self.model.save_weights(name)
 
 
-def store_results():
+def store_results(data):
     # present the timed results
     t_stop = process_time()
     print('Runtime: {}hr.'.format((t_stop - t_start)/3600.))
     # create and save a figure
     if storing:
-        t1 = [i for i in range(len(results_over_time))]
+        t1 = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t1, results_over_time)
+        ax.plot(t1, data)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
         plt.savefig(save_filename + datetime.now().strftime("%m%d%H:%M") + '_training' + '.png')
@@ -123,7 +134,7 @@ if __name__ == "__main__":
         move_counter = 0
 
         # initialize agent and environment
-        agent = OthelloAgent(episodes)
+        agent = OthelloAgent(episodes, model_type='dense')
         game = OthelloGame(opponent='rand', interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
@@ -160,12 +171,18 @@ if __name__ == "__main__":
                     game.reset()
                     game.start()
                     state = game.get_state()  # 6x6 numpy array
-                    state = np.reshape(state, [1, 36])  # 1x36 vector
+                    if agent.model_type == 'dense':
+                        state = np.reshape(state, [1, 36])
+                    else:
+                        state = state.reshape(1, state.shape[0], state.shape[1], 1)
 
                     for move in range(100):
                         action = agent.get_action(state, testing)
                         reward, next_state, valid_moves, terminal = game.step(action)
-                        next_state = np.reshape(next_state, [1, 36])
+                        if agent.model_type == 'dense':
+                            next_state = np.reshape(next_state, [1, 36])
+                        else:
+                            next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
                         state = next_state
                         if terminal:
                             # terminal reward is 0 for loss, 0.5 for tie, 1 for win
@@ -185,13 +202,19 @@ if __name__ == "__main__":
             game.reset()
             game.start()
             state = game.get_state()  # 6x6 numpy array
-            state = np.reshape(state, [1, 36])   # 1x36 vector
+            if agent.model_type == 'dense':
+                state = np.reshape(state, [1, 36])
+            else:
+                state = state.reshape(1, state.shape[0], state.shape[1], 1)
 
             for move in range(100):   # max amount of moves in an episode
                 move_counter += 1
                 action = agent.get_action(state, testing)
                 reward, next_state, valid_moves, terminal = game.step(action)
-                next_state = np.reshape(next_state, [1, 36])
+                if agent.model_type == 'dense':
+                    next_state = np.reshape(next_state, [1, 36])
+                else:
+                    next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
                 agent.remember(state, action, reward, next_state, valid_moves, terminal)
                 state = next_state
                 if terminal:
@@ -224,9 +247,9 @@ if __name__ == "__main__":
                 # agent.save(save_filename + datetime.now().strftime("%m%d%H:%M") + ".h5")
                 # np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', results_over_time)
                 pass
-        store_results()
+        store_results(results_over_time)
     except KeyboardInterrupt:
         # change the length of our numpy array to be whatever we stopped at
         save_data = results_over_time[[i < 100 or r > 0 for i, r in enumerate(results_over_time)]]
         np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', save_data)
-        store_results()
+        store_results(save_data)
