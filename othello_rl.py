@@ -107,7 +107,7 @@ def store_results(data):
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
         plt.savefig(save_filename + datetime.now().strftime("(%m-%d--%H:%M)") + '_training' + '.png')
-        plt.show()
+        # plt.show()
 
 
 if __name__ == "__main__":
