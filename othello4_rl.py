@@ -1,7 +1,7 @@
-from othello6_env import OthelloGame
+from othello4_env import OthelloGame
+import tensorflow as tf
 import numpy as np
 from collections import deque
-import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.initializers import RandomUniform
@@ -13,8 +13,8 @@ from datetime import datetime
 
 class OthelloAgent:
     def __init__(self, ep):
-        self.state_size = 36
-        self.action_size = 36
+        self.state_size = 16
+        self.action_size = 16
         self.tile = 'X'
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> no discount
@@ -29,8 +29,8 @@ class OthelloAgent:
         # Feed-forward NN
         model = tf.keras.Sequential()
         init = RandomUniform(minval=-0.5, maxval=0.5)
-        model.add(layers.Dense(30, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-        model.add(layers.Dense(36, activation='sigmoid', kernel_initializer=init))
+        model.add(layers.Dense(10, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+        model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
@@ -47,7 +47,7 @@ class OthelloAgent:
             all_values = self.model.predict(st)
             # return the VALID action with the highest network value
             # use an action_grid that can be indexed by [x, y]
-            action_grid = np.reshape(all_values[0], newshape=(6, 6))
+            action_grid = np.reshape(all_values[0], newshape=(4, 4))
             q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
@@ -62,14 +62,12 @@ class OthelloAgent:
             target = rw
             if not done:
                 all_values = self.model.predict(next_st)
-                action_grid = np.reshape(all_values[0], newshape=(6, 6))
+                action_grid = np.reshape(all_values[0], newshape=(4, 4))
                 q_values = [action_grid[v[1], v[0]] for v in vld_moves]
                 target = rw + self.gamma * np.amax(q_values)
             target_nn = self.model.predict(st)
-            target_nn[0][act[1]*6+act[0]] = target   # only this Q val will be updated
+            target_nn[0][act[1]*4+act[0]] = target   # only this Q val will be updated
             self.model.fit(st, target_nn, epochs=1, verbose=0)
-
-        self.memory.clear()
 
     def epsilon_decay(self):
         # linear epsilon decay feature
@@ -113,25 +111,25 @@ if __name__ == "__main__":
         testing = False
 
         terminal = False
-        batch_size = 360
+        batch_size = 32
         episodes = 20000
 
         test_interval = 2000
-        test_length = 1000
+        test_length = 400
 
         outcomes = ['Loss', 'Tie', 'Win']
         move_counter = 0
 
         # initialize agent and environment
         agent = OthelloAgent(episodes)
-        game = OthelloGame(opponent='heur', interactive=False, show_steps=False)
+        game = OthelloGame(opponent='rand', interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = './saves/othello6_basic-sequential_rand_2000'
+            save_filename = './saves/othello8_basic-sequential_rand_2000'
         if loading:
-            load_filename = './saves/othello6_basic-sequential_rand_2000'
+            load_filename = './saves/othello8_basic-sequential_rand_2000'
             agent.load(load_filename + ".h5")
 
         if loading and not testing:
@@ -159,13 +157,13 @@ if __name__ == "__main__":
                 for test_ep in range(test_length):
                     game.reset()
                     game.start()
-                    state = game.get_state()  # 6x6 numpy array
-                    state = np.reshape(state, [1, 36])  # 1x36 vector
+                    state = game.get_state()  # 8x8 numpy array
+                    state = np.reshape(state, [1, 16])  # 1x64 vector
 
                     for move in range(100):
                         action = agent.get_action(state, testing)
                         reward, next_state, valid_moves, terminal = game.step(action)
-                        next_state = np.reshape(next_state, [1, 36])
+                        next_state = np.reshape(next_state, [1, 16])
                         state = next_state
                         if terminal:
                             # terminal reward is 0 for loss, 0.5 for tie, 1 for win
@@ -184,14 +182,14 @@ if __name__ == "__main__":
 
             game.reset()
             game.start()
-            state = game.get_state()  # 6x6 numpy array
-            state = np.reshape(state, [1, 36])   # 1x36 vector
+            state = game.get_state()  # 8x8 numpy array
+            state = np.reshape(state, [1, 16])   # 1x64 vector
 
             for move in range(100):   # max amount of moves in an episode
                 move_counter += 1
                 action = agent.get_action(state, testing)
                 reward, next_state, valid_moves, terminal = game.step(action)
-                next_state = np.reshape(next_state, [1, 36])
+                next_state = np.reshape(next_state, [1, 16])
                 agent.remember(state, action, reward, next_state, valid_moves, terminal)
                 state = next_state
                 if terminal:
@@ -214,9 +212,9 @@ if __name__ == "__main__":
 
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
-                if move_counter % batch_size == 0:
+                # if move_counter % batch_size == 0:
                 # if len(agent.memory) > batch_size:
-                    agent.replay(batch_size)
+                #     agent.replay(batch_size)
 
             agent.epsilon_decay()
             if e % 100 == 0 and e > 0 and storing:

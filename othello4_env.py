@@ -8,46 +8,46 @@ import numpy as np
 # static methods
 def is_on_board(x, y):
     # Returns True if the coordinates are located on the board.
-    return 0 <= x <= 5 and 0 <= y <= 5
+    return 0 <= x <= 3 and 0 <= y <= 3
 
 
 def is_on_corner(x, y):
     # Returns True if the position is in one of the four corners.
-    return (x == 0 and y == 0) or (x == 5 and y == 0) or (x == 0 and y == 5) or (x == 5 and y == 5)
+    return (x == 0 and y == 0) or (x == 3 and y == 0) or (x == 0 and y == 3) or (x == 3 and y == 3)
 
 
 class Board:
 
     def __init__(self):
         self.board = []
-        for _ in range(6):
-            self.board.append([' '] * 6)
+        for _ in range(4):
+            self.board.append([' '] * 4)
         self.reset()
 
     def draw(self):
 
-        h_line = '  +----+----+----+----+----+----+'
+        h_line = '  +----+----+----+----+'
 
-        print('     1    2    3    4    5    6')
+        print('     1    2    3    4')
         print(h_line)
-        for y in range(6):
+        for y in range(4):
             print(y + 1, end=' ')
-            for x in range(6):
+            for x in range(4):
                 print('| %s' % (self.board[x][y]), end='  ')
             print('|')
             print(h_line)
 
     def reset(self):
         # Blanks out the board it is passed, except for the original starting position.
-        for x in range(6):
-            for y in range(6):
+        for x in range(4):
+            for y in range(4):
                 self.board[x][y] = ' '
 
         # Starting pieces: X = black, O = white.
+        self.board[1][1] = 'X'
+        self.board[1][2] = 'O'
+        self.board[2][1] = 'O'
         self.board[2][2] = 'X'
-        self.board[2][3] = 'O'
-        self.board[3][2] = 'O'
-        self.board[3][3] = 'X'
 
     def is_valid_move(self, tile, x_start, y_start):
         # Returns False if the player's move on space x_start, y_start is invalid.
@@ -99,8 +99,8 @@ class Board:
         # Returns a list of [x,y] lists of valid moves for the given player on the given board.
         valid_moves = []
 
-        for x in range(6):
-            for y in range(6):
+        for x in range(4):
+            for y in range(4):
                 if self.is_valid_move(tile, x, y):
                     valid_moves.append([x, y])
         return valid_moves
@@ -109,8 +109,8 @@ class Board:
         # Determine the score by counting the tiles. Returns a dictionary with keys 'X' and 'O'.
         x_score = 0
         o_score = 0
-        for x in range(6):
-            for y in range(6):
+        for x in range(4):
+            for y in range(4):
                 if self.board[x][y] == 'X':
                     x_score += 1
                 elif self.board[x][y] == 'O':
@@ -134,8 +134,8 @@ class Board:
         # Make a duplicate of the board list and return the duplicate.
         dupe_board = Board()
 
-        for x in range(6):
-            for y in range(6):
+        for x in range(4):
+            for y in range(4):
                 dupe_board.board[x][y] = self.board[x][y]
 
         return dupe_board
@@ -150,9 +150,9 @@ class Board:
         return dupe_board
 
     def list_to_array(self):
-        state = np.zeros((6, 6))
-        for i in range(6):
-            for j in range(6):
+        state = np.zeros((4, 4))
+        for i in range(4):
+            for j in range(4):
                 if self.board[j][i] == 'X':
                     state[i, j] = 1
                 elif self.board[j][i] == 'O':
@@ -162,14 +162,14 @@ class Board:
         return state
 
     def array_to_list(self, state):
-        for y in range(6):
-            for x in range(6):
-                if state[y, x] == 1:
-                    self.board[x][y] = 'X'
-                elif state[y, x] == -1:
-                    self.board[x][y] = 'O'
+        for i in range(4):
+            for j in range(4):
+                if state[i, j] == 1:
+                    self.board[j][i] = 'X'
+                elif state[i, j] == -1:
+                    self.board[j][i] = 'O'
                 else:
-                    self.board[x][y] = ' '
+                    self.board[j][i] = ' '
         return self.board
 
 
@@ -198,19 +198,23 @@ class OthelloGame:
         # build the value tables for the opponents
         # make it a 2D list so indexing matches the board
         if self.opponent == 'heur':
-            self.position_value = [100, -25, 10, 10, -25, 100,
-                                   -25, -25, 2, 2, -25, -25,
-                                   10, 2, 5, 5, 2, 10,
-                                   10, 2, 5, 5, 2, 10,
-                                   -25, -25, 2, 2, -25, -25,
-                                   100, -25, 10, 10, -25, 100]
+            self.position_value = [100, -25, 10, 5, 5, 10, -25, 100,
+                                   -25, -25, 2, 2, 2, 2, -25, -25,
+                                   10, 2, 5, 1, 1, 5, 2, 10,
+                                   5, 2, 1, 2, 2, 1, 2, 5,
+                                   5, 2, 1, 2, 2, 1, 2, 5,
+                                   10, 2, 5, 1, 1, 5, 2, 10,
+                                   -25, -25, 2, 2, 2, 2, -25, -25,
+                                   100, -25, 10, 5, 5, 10, -25, 100]
         elif self.opponent == 'bench':
-            self.position_value = [80, -26, 24, 28, -18, 76,
-                                   -23, -39, -18, -8, -39, -1,
-                                   46, -16, 4, 6, -20, 52,
-                                   48, -13, 12, 5, -24, 41,
-                                   -27, -53, -11, -16, -58, -15,
-                                   87, -25, 27, 36, -3, 100]
+            self.position_value = [80, -26, 24, -1, -5, 28, -18, 76,
+                                   -23, -39, -18, -9, -6, -8, -39, -1,
+                                   46, -16, 4, 1, -3, 6, -20, 52,
+                                   -13, -5, 2, -1, 4, 3, -12, -2,
+                                   -5, -6, 1, -2, -3, 0, -9, -5,
+                                   48, -13, 12, 5, 0, 5, -24, 41,
+                                   -27, -53, -11, -1, -11, -16, -58, -15,
+                                   87, -25, 27, -1, 5, 36, -3, 100]
 
     def reset(self):
         self.board.reset()
@@ -243,7 +247,7 @@ class OthelloGame:
     def get_player_action(self):
         # Let the player type in their move given a board state.
         # Returns the move as [x, y] (or returns the strings 'hints' or 'quit')
-        valid_digits = '1 2 3 4 5 6'.split()
+        valid_digits = '1 2 3 4'.split()
         while True:
             print('Enter your move, or type quit to end the game, or hints to turn off/on hints.')
             player_action = input().lower()
@@ -262,8 +266,8 @@ class OthelloGame:
                 else:
                     break
             else:
-                print('That is not a valid move. Type the x digit (1-6), then the y digit (1-6).')
-                print('For example, 61 will be the top-right corner.')
+                print('That is not a valid move. Type the x digit (1-4), then the y digit (1-4).')
+                print('For example, 41 will be the top-right corner.')
 
         return [x, y]
 
@@ -283,8 +287,8 @@ class OthelloGame:
                     computer_afterstate_v.append(0)
                     temp_board = self.board.copy()
                     temp_board.make_move(self.computer_tile, possible_moves[i][0], possible_moves[i][1])
-                    for j in range(36):
-                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j/6)][j % 6] * self.position_value[j]
+                    for j in range(16):
+                        computer_afterstate_v[i] -= temp_board.list_to_array()[int(j/4)][j % 4] * self.position_value[j]
                 best = int(np.argmax([computer_afterstate_v[k] for k in range(len(possible_moves))]))
                 return possible_moves[best]
         else:
