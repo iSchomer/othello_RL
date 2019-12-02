@@ -34,8 +34,8 @@ class OthelloAgent:
         model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
         return model
 
-    def remember(self, st, act, rw, next_st, done):
-        self.memory.append((st, act, rw, next_st, done))
+    def remember(self, st, act, rw, next_st, vld_moves, done):
+        self.memory.append((st, act, rw, next_st, vld_moves, done))
 
     def get_action(self, st, test):
         valid_actions = game.board.get_valid_moves(self.tile)
@@ -58,16 +58,17 @@ class OthelloAgent:
                  other actions are set to the NN estimate so that the estimate is zero)
         """
         mini_batch = random.sample(self.memory, bat_size)
-        for st, act, rw, next_st, done in mini_batch:
+        for st, act, rw, next_st, vld_moves, done in mini_batch:
             target = rw
             if not done:
                 all_values = self.model.predict(next_st)
                 action_grid = np.reshape(all_values[0], newshape=(6, 6))
 
-                temp_board = Board()
-                temp_board.array_to_list(np.reshape(next_st, newshape=(6, 6)))
-                valid_actions = temp_board.get_valid_moves(self.tile)
-                q_values = [action_grid[v[1], v[0]] for v in valid_actions]
+                # temp_board = Board()
+                # temp_board.array_to_list(np.reshape(next_st, newshape=(6, 6)))
+                # valid_actions = temp_board.get_valid_moves(self.tile)
+
+                q_values = [action_grid[v[1], v[0]] for v in vld_moves]
                 target = rw + self.gamma * np.amax(q_values)
             target_nn = self.model.predict(st)
             target_nn[0][act[1]*6+act[0]] = target   # only this Q val will be updated
@@ -166,7 +167,7 @@ if __name__ == "__main__":
 
                     for move in range(100):
                         action = agent.get_action(state, testing)
-                        reward, next_state, terminal = game.step(action)
+                        reward, next_state, valid_moves, terminal = game.step(action)
                         next_state = np.reshape(next_state, [1, 36])
                         state = next_state
                         if terminal:
@@ -192,9 +193,9 @@ if __name__ == "__main__":
             for move in range(100):   # max amount of moves in an episode
                 move_counter += 1
                 action = agent.get_action(state, testing)
-                reward, next_state, terminal = game.step(action)
+                reward, next_state, valid_moves, terminal = game.step(action)
                 next_state = np.reshape(next_state, [1, 36])
-                agent.remember(state, action, reward, next_state, terminal)
+                agent.remember(state, action, reward, next_state, valid_moves, terminal)
                 state = next_state
                 if terminal:
                     # terminal reward is 0 for loss, 0.5 for tie, 1 for win
