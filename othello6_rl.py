@@ -86,16 +86,16 @@ class OthelloAgent:
         self.model.save_weights(name)
 
 
-def store_results():
+def store_results(data):
     # present the timed results
     t_stop = process_time()
     print('Runtime: {}hr.'.format((t_stop - t_start)/3600.))
     # create and save a figure
     if storing:
-        t1 = [i for i in range(len(results_over_time))]
+        t1 = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t1, results_over_time)
+        ax.plot(t1, data)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
         plt.savefig(save_filename + datetime.now().strftime("%m%d%H:%M") + '_training' + '.png')
@@ -226,9 +226,9 @@ if __name__ == "__main__":
                 # agent.save(save_filename + datetime.now().strftime("%m%d%H:%M") + ".h5")
                 # np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', results_over_time)
                 pass
-        store_results()
+        store_results(results_over_time)
     except KeyboardInterrupt:
         # change the length of our numpy array to be whatever we stopped at
         save_data = results_over_time[[i < 100 or r > 0 for i, r in enumerate(results_over_time)]]
         np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', save_data)
-        store_results()
+        store_results(save_data)

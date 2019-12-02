@@ -1,4 +1,4 @@
-from othello_env import OthelloGame
+from final_project.othello_env import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -8,6 +8,7 @@ from tensorflow.keras.initializers import RandomUniform
 import random
 from time import process_time
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 
 class OthelloAgent:
@@ -19,7 +20,7 @@ class OthelloAgent:
         self.gamma = 1.0  # episodic --> no discount
         self.episodes = ep
         self.epsilon = 0.1
-        self.epsilon_min = 0.0
+        self.epsilon_min = 0.08
         self.epsilon_step = (self.epsilon - self.epsilon_min)/ep
         self.learning_rate = 0.02
         self.model_type = model_type
@@ -36,16 +37,16 @@ class OthelloAgent:
             # convolutional neural network
             model = tf.keras.Sequential()
             # convolve to a 6x6 grid
-            model.add(layers.Conv2D(8, kernel_size=3, activation='relu', input_shape=(8, 8, 1)))
+            model.add(layers.Conv2D(16, kernel_size=3, activation='relu', input_shape=(8, 8, 1)))
             model.add(layers.Flatten())
-            model.add(layers.Dense(50, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
             # add a dense layer
-            model.add(layers.Dense(64, activation='sigmoid'))
+            model.add(layers.Dense(40, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(64, activation='sigmoid', kernel_initializer=init))
         model.compile(loss='mse', optimizer=Adam())
         return model
 
-    def remember(self, st, act, rw, next_st, done):
-        self.memory.append((st, act, rw, next_st, done))
+    def remember(self, st, act, rw, next_st, vld_moves, done):
+        self.memory.append((st, act, rw, next_st, vld_moves, done))
 
     def get_action(self, st, test):
         valid_actions = game.board.get_valid_moves(self.tile)
@@ -61,18 +62,20 @@ class OthelloAgent:
             q_values = [action_grid[v[1], v[0]] for v in valid_actions]
             return valid_actions[np.argmax(q_values)]
 
-    def replay(self, bat_size):
+    def replay(self, bat_size, valid_actions):
         """
         Perform back-propagation using stochastic gradient descent.
         Only want to update the state-action pair that is selected (the target for all
                  other actions are set to the NN estimate so that the estimate is zero)
         """
         mini_batch = random.sample(self.memory, bat_size)
-        for st, act, rw, next_st, done in mini_batch:
+        for st, act, rw, next_st, vld_moves, done in mini_batch:
             target = rw
             if not done:
-                target = rw + self.gamma * \
-                         np.amax(self.model.predict(next_st)[0])
+                all_values = self.model.predict(next_st)
+                action_grid = np.reshape(all_values[0], newshape=(8, 8))
+                q_values = [action_grid[v[1], v[0]] for v in vld_moves]
+                target = rw + self.gamma * np.amax(q_values)
             target_nn = self.model.predict(st)
             target_nn[0][act[1]*8+act[0]] = target   # only this Q val will be updated
             self.model.fit(st, target_nn, epochs=1, verbose=0)
@@ -89,19 +92,19 @@ class OthelloAgent:
         self.model.save_weights(name)
 
 
-def store_results():
+def store_results(data):
     # present the timed results
     t_stop = process_time()
     print('Runtime: {}hr.'.format((t_stop - t_start)/3600.))
     # create and save a figure
     if storing:
-        t1 = [i for i in range(len(results_over_time))]
+        t1 = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t1, results_over_time)
+        ax.plot(t1, data)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
-        plt.savefig(save_filename + 'training' + '.png')
+        plt.savefig(save_filename + datetime.now().strftime("%m%d%H:%M") + '_training' + '.png')
 
         t2 = [i for i in range(len(test_result))]
         fig = plt.figure()
@@ -109,22 +112,24 @@ def store_results():
         ax.plot(t2, test_result)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Testing")
-        plt.savefig(save_filename + 'testing' + '.png')
+        plt.savefig(save_filename + datetime.now().strftime("%m%d%H:%M") + '_testing' + '.png')
 
 
 if __name__ == "__main__":
     try:
-        episodes = 500
-        storing = False
+        episodes = 10000
+        storing = True
         loading = False
-        testing = False
+        testing = False   # keep this at False unless loading is True
 
         terminal = False
         batch_size = 32
-        episodes = 2000
 
-        test_interval = 200
-        test_length = 20
+        test_interval = 2000
+        test_length = 100
+
+        outcomes = ['Loss', 'Tie', 'Win']
+        move_counter = 0
 
         # initialize agent and environment
         agent = OthelloAgent(episodes, model_type='cnn')
@@ -133,9 +138,9 @@ if __name__ == "__main__":
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
         if storing:
-            save_filename = 'final_project/saves/cnn_rand_20000_2'
+            save_filename = 'final_project/saves/c16-3d40_rand_10000'
         if loading:
-            load_filename = 'final_project/saves/cnn_rand_12000_2'
+            load_filename = 'final_project/saves/c12-2d50_rand_600'
             agent.load(load_filename + ".h5")
 
         if loading and not testing:
@@ -153,6 +158,45 @@ if __name__ == "__main__":
         # time it
         t_start = process_time()
         for e in range(episode_start, episode_start + episodes):
+
+            # perform a 100-episode test with greedy policy
+            if e % test_interval == 0:
+                testing = True
+
+            if testing is True:
+                test_result.append(0)
+                for test_ep in range(test_length):
+                    game.reset()
+                    game.start()
+                    state = game.get_state()  # 6x6 numpy array
+                    if agent.model_type == 'dense':
+                        state = np.reshape(state, [1, 64])
+                    else:
+                        state = state.reshape(1, state.shape[0], state.shape[1], 1)
+
+                    for move in range(100):
+                        action = agent.get_action(state, testing)
+                        reward, next_state, valid_moves, terminal = game.step(action)
+                        if agent.model_type == 'dense':
+                            next_state = np.reshape(next_state, [1, 64])
+                        else:
+                            next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
+                        state = next_state
+                        if terminal:
+                            # terminal reward is 0 for loss, 0.5 for tie, 1 for win
+                            # use this as an indexing code to get the result
+                            result = outcomes[int(reward * 2)]
+                            if result == 'Win':
+                                n = 1
+                            else:
+                                n = 0
+                            test_result[-1] += (1 / (test_ep % test_interval + 1)) * (n - test_result[-1])
+                            if test_ep % 10 == 0 and test_ep > 0:
+                                print('testing' + "episode {}: {} moves, Result: {}".format(test_ep, move, result))
+                                print("Average win/loss ratio: ", test_result[-1])
+                            break
+                testing = False
+
             game.reset()
             game.start()
             state = game.get_state()  # 8x8 numpy array
@@ -161,61 +205,47 @@ if __name__ == "__main__":
             else:
                 state = state.reshape(1, state.shape[0], state.shape[1], 1)
 
-            # perform a 500-episode test with greedy policy
-            if e % test_interval == 0:
-                testing = True
-            if e % test_interval == test_length:
-                testing = False
-
             for move in range(100):   # max amount of moves in an episode
+                move_counter += 1
                 action = agent.get_action(state, testing)
-                reward, next_state, terminal = game.step(action)
+                reward, next_state, valid_moves, terminal = game.step(action)
                 if agent.model_type == 'dense':
                     next_state = np.reshape(next_state, [1, 64])
                 else:
                     next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
-                if not testing:
-                    agent.remember(state, action, reward, next_state, terminal)
+                agent.remember(state, action, reward, next_state, valid_moves, terminal)
                 state = next_state
                 if terminal:
                     # terminal reward is 0 for loss, 0.5 for tie, 1 for win
                     # use this as an indexing code to get the result
-                    outcomes = ['Loss', 'Tie', 'Win']
                     result = outcomes[int(reward*2)]
                     if result == 'Win':
                         n = 1
                     else:
                         n = 0
 
-                    if testing:
-                        if e % test_interval == 0:
-                            test_result.append(0)
-                        test_result[-1] += (1/(e % test_interval + 1))*(n - test_result[-1])
-                        results_over_time[e] = avg_result
-                    else:
-                        avg_result += (1/(e+1))*(n - avg_result)
-                        results_over_time[e] = avg_result
+                    avg_result += (1/(e+1))*(n - avg_result)
+                    results_over_time[e] = avg_result
 
                     if e % 10 == 0 and e > 0:
-                        if testing:
-                            print('testing')
                         print("episode {}: {} moves, Result: {}, e: {:.2}"
                               .format(e, move, result, agent.epsilon))
                         print("Average win/loss ratio: ", avg_result)
                     break
+
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
-                if len(agent.memory) > batch_size and not testing:
-                    agent.replay(batch_size)
+                if move_counter % batch_size == 0:  # if len(agent.memory) > batch_size:
+                    agent.replay(batch_size, game.player_tile)
 
             agent.epsilon_decay()
-            if e % 100 == 0 and e > 0 and storing:
-                # save name as 'saves/model-type_training-opponent_num-episodes.h5'
-                agent.save(save_filename + ".h5")
-                np.save(save_filename + '.npy', results_over_time)
-        store_results()
+            # if e % 100 == 0 and e > 0 and storing:
+            #    # save name as 'saves/model-type_training-opponent_num-episodes.h5'
+            #    agent.save(save_filename + datetime.now().strftime("%m%d%H:%M") + ".h5")
+            #    np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', results_over_time)
+        store_results(results_over_time)
     except KeyboardInterrupt:
         # change the length of our numpy array to be whatever we stopped at
         save_data = results_over_time[[i < 100 or r > 0 for i, r in enumerate(results_over_time)]]
-        np.save(save_filename + '.npy', save_data)
-        store_results()
+        np.save(save_filename + datetime.now().strftime("%m%d%H:%M") + '.npy', save_data)
+        store_results(save_data)
