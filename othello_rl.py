@@ -115,6 +115,7 @@ if __name__ == "__main__":
     storing = True
     loading = False
     testing = False  # keep this at False unless loading is True
+    alpha = .01
 
     terminal = False
     batch_size = 32
@@ -218,7 +219,7 @@ if __name__ == "__main__":
                 else:
                     n = 0
 
-                avg_result += (1 / e) * (n - avg_result)
+                avg_result += alpha * (n - avg_result)
                 results_over_time[e - 1] = avg_result
 
                 if e % 10 == 0:
