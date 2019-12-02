@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
         # initialize agent and environment
         agent = OthelloAgent(episodes)
-        game = OthelloGame(opponent='rand', interactive=False, show_steps=False)
+        game = OthelloGame(opponent='heur', interactive=False, show_steps=False)
 
         # FILENAME CONVENTION
         #      'saves/NN-type_opponent_num-episodes'
