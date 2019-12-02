@@ -74,16 +74,13 @@ class OthelloAgent:
             if not done:
                 all_values = self.model.predict(next_st)
                 action_grid = np.reshape(all_values[0], newshape=(6, 6))
-
-                # temp_board = Board()
-                # temp_board.array_to_list(np.reshape(next_st, newshape=(6, 6)))
-                # valid_actions = temp_board.get_valid_moves(self.tile)
-
                 q_values = [action_grid[v[1], v[0]] for v in vld_moves]
                 target = rw + self.gamma * np.amax(q_values)
             target_nn = self.model.predict(st)
             target_nn[0][act[1]*6+act[0]] = target   # only this Q val will be updated
             self.model.fit(st, target_nn, epochs=1, verbose=0)
+
+        self.memory.clear()
 
     def epsilon_decay(self):
         # linear epsilon decay feature
@@ -127,11 +124,11 @@ if __name__ == "__main__":
         testing = False
 
         terminal = False
-        batch_size = 32
-        episodes = 200000
+        batch_size = 360
+        episodes = 20000
 
         test_interval = 2000
-        test_length = 400
+        test_length = 1000
 
         outcomes = ['Loss', 'Tie', 'Win']
         move_counter = 0
@@ -240,8 +237,9 @@ if __name__ == "__main__":
 
                 # Question - maybe only update every batch_size moves
                 #       (instead of every move after batch_size)?
-                if move_counter % batch_size == 0:  # if len(agent.memory) > batch_size:
-                    agent.replay(batch_size, game.player_tile)
+                if move_counter % batch_size == 0:
+                # if len(agent.memory) > batch_size:
+                    agent.replay(batch_size)
 
             agent.epsilon_decay()
             if e % 100 == 0 and e > 0 and storing:
