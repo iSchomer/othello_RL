@@ -86,6 +86,12 @@ class OthelloAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_step
 
+    def learning_rate_decay(self):
+        """
+        :param progress: percent training complete (current episode / total num episodes)
+        """
+        self.learning_rate = self.learning_rate * 0.8
+
     def load(self, name):
         self.model.load_weights(name)
 
@@ -222,9 +228,14 @@ if __name__ == "__main__":
                 results_over_time[e - 1] = avg_result
 
                 if e % 100 == 0:
-                    print("episode {}: {} moves, Result: {}, e: {:.2}"
-                          .format(e, move, result, agent.epsilon))
+                    print("episode {}: {} moves, Result: {}, e: {:.2}, n: {:.3}"
+                          .format(e, move, result, agent.epsilon, agent.learning_rate))
                     print("Average win/loss ratio: ", avg_result)
+
+                # decrease learning rate 10 times over the course of training
+                # so that learning rate progresses 0.1 --> 0.01
+                if e % (int(episodes / 10)) == 0 and not loading:
+                    agent.learning_rate_decay()
 
                 # at the end of every 4th episode, perform weight updates
                 if e % 4 == 0 and len(agent.memory) > batch_size:
