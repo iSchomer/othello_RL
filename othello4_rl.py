@@ -19,10 +19,12 @@ class OthelloAgent:
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> no discount
         self.episodes = ep
-        self.epsilon = 0.15
-        self.epsilon_min = 0.075
+        self.epsilon = 0.25
+        self.epsilon_min = 0.1
         self.epsilon_step = (self.epsilon - self.epsilon_min) / self.episodes
-        self.learning_rate = 0.005
+        self.lr = 0.1
+        self.lr_min = 0.01
+        self.lr_decay = 0.75
         self.model_type = model_type
         self.model = self.build_model()
 
@@ -33,7 +35,7 @@ class OthelloAgent:
             model = tf.keras.Sequential()
             model.add(layers.Dense(10, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
             model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
-            model.compile(loss='mse', optimizer=SGD(lr=self.learning_rate))
+            model.compile(loss='mse', optimizer=SGD(lr=self.lr))
         else:
             # convolutional neural network
             model = tf.keras.Sequential()
@@ -88,9 +90,10 @@ class OthelloAgent:
 
     def learning_rate_decay(self):
         """
-        :param progress: percent training complete (current episode / total num episodes)
+        Converge to self.lr_min from self.lr via exponential decay
+        Note: may not reach self.lr_min if this function is not called enough time
         """
-        self.learning_rate = self.learning_rate * 0.8
+        self.lr = (self.lr - self.lr_min)*self.lr_decay + self.lr_min
 
     def load(self, name):
         self.model.load_weights(name)
@@ -230,12 +233,12 @@ if __name__ == "__main__":
 
                 if e % 100 == 0:
                     print("episode {}: {} moves, Result: {}, e: {:.2}, n: {:.3}"
-                          .format(e, move, result, agent.epsilon, agent.learning_rate))
+                          .format(e, move, result, agent.epsilon, agent.lr))
                     print("Average win/loss ratio: ", avg_result)
 
                 # decrease learning rate 10 times over the course of training
                 # so that learning rate progresses 0.1 --> 0.01
-                if e % (int(episodes / 10)) == 0 and not loading:
+                if e % (int(episodes / 20)) == 0 and not loading:
                     agent.learning_rate_decay()
 
                 # at the end of every 4th episode, perform weight updates
@@ -245,12 +248,14 @@ if __name__ == "__main__":
                 break
 
         agent.epsilon_decay()
-        if e % test_interval == 0 and storing:
+        if e % (2*test_interval) == 0 and storing:
             # save name as 'saves/model-type_training-opponent_num-episodes.h5'
             agent.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + ".h5")
 
             # save only the length of the array that we stopped at
             save_data = results_over_time[:e]
-            np.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + '.npy', save_data)
-            np.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + '_test.npy', test_result)
+            save_name = save_filename + datetime.now().strftime("(%m-%d--%H)")
+            np.save(save_name + '.npy', save_data)
+            np.save(save_name + '_test.npy', test_result)
             store_results(save_data)
+            print("To load for more training, copy the following name: ", save_name)
