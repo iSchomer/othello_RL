@@ -1,4 +1,4 @@
-from othello4_env import OthelloGame
+from final_project.othello4_env import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -19,10 +19,10 @@ class OthelloAgent:
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> no discount
         self.episodes = ep
-        self.epsilon = 0.1
-        self.epsilon_min = 0.0
+        self.epsilon = 0.25
+        self.epsilon_min = 0.1
         self.epsilon_step = (self.epsilon - self.epsilon_min) / self.episodes
-        self.learning_rate = 0.01
+        self.learning_rate = 0.1
         self.model_type = model_type
         self.model = self.build_model()
 
@@ -38,11 +38,11 @@ class OthelloAgent:
             # convolutional neural network
             model = tf.keras.Sequential()
             # convolve to a 6x6 grid
-            model.add(layers.Conv2D(16, kernel_size=3, activation='relu', input_shape=(8, 8, 1)))
+            model.add(layers.Conv2D(16, kernel_size=3, activation='relu', input_shape=(4, 4, 1)))
             model.add(layers.Flatten())
             # add a dense layer
-            model.add(layers.Dense(30, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
-            model.add(layers.Dense(64, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(20, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
             model.compile(loss='mse', optimizer=Adam())
         return model
 
@@ -102,17 +102,17 @@ def store_results(data):
         t1 = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t1, data)
+        ax.plot(t1, data, zorder=1)
         test_points = [0] + [test_interval * (i + 1) for i in range(int(len(data) / test_interval))]
-        ax.scatter(test_points, test_result, marker='o')
+        ax.scatter(test_points, test_result, marker='o', c='orange', zorder=2)
         ax.set_xlabel("Episode")
         ax.set_title("Percent Wins During Training")
-        plt.savefig(save_filename + datetime.now().strftime("(%m-%d--%H:%M)") + '_training' + '.png')
-        plt.show()
+        plt.savefig(save_filename + datetime.now().strftime("(%m-%d--%H-%M)") + '_training' + '.png')
+        # plt.show()
 
 
 if __name__ == "__main__":
-    episodes = 500
+    episodes = 20000
     storing = True
     loading = False
     testing = False  # keep this at False unless loading is True
@@ -125,7 +125,6 @@ if __name__ == "__main__":
     test_length = 400
 
     outcomes = ['Loss', 'Tie', 'Win']
-    move_counter = 0
 
     # initialize agent and environment
     agent = OthelloAgent(episodes, model_type='dense')
@@ -134,9 +133,9 @@ if __name__ == "__main__":
     # FILENAME CONVENTION
     #      'saves/NN-type_opponent_num-episodes'
     if storing:
-        save_filename = './saves/othello4_basic-sequential_rand_2000'
+        save_filename = 'final_project/saves/othello4_d20_rand_20000'
     if loading:
-        load_filename = './saves/othello4_basic-sequential_rand_2000'
+        load_filename = 'final_project/saves/othello4_basic-sequential_rand_2000'
         agent.load(load_filename + ".h5")
 
     if loading and not testing:
@@ -187,7 +186,7 @@ if __name__ == "__main__":
                         else:
                             n = 0
                         test_result[-1] += (1 / (test_ep % test_interval + 1)) * (n - test_result[-1])
-                        if test_ep % 10 == 0 and test_ep > 0:
+                        if test_ep % 100 == 0 and test_ep > 0:
                             print('testing' + "episode {}: {} moves, Result: {}".format(test_ep, move, result))
                             print("Average win/loss ratio: ", test_result[-1])
                         break
@@ -202,7 +201,6 @@ if __name__ == "__main__":
             state = state.reshape(1, state.shape[0], state.shape[1], 1)
 
         for move in range(100):  # max amount of moves in an episode
-            move_counter += 1
             action = agent.get_action(state, testing)
             reward, next_state, valid_moves, terminal = game.step(action)
             if agent.model_type == 'dense':
@@ -223,17 +221,16 @@ if __name__ == "__main__":
                 avg_result += alpha * (n - avg_result)
                 results_over_time[e - 1] = avg_result
 
-                if e % 10 == 0:
+                if e % 100 == 0:
                     print("episode {}: {} moves, Result: {}, e: {:.2}"
                           .format(e, move, result, agent.epsilon))
                     print("Average win/loss ratio: ", avg_result)
-                break
 
-            # Question - maybe only update every batch_size moves
-            #       (instead of every move after batch_size)?
-            # if move_counter % batch_size == 0:
-            # if len(agent.memory) > batch_size:
-            #     agent.replay(batch_size)
+                # at the end of every 4th episode, perform weight updates
+                if e % 4 == 0 and len(agent.memory) > batch_size:
+                    # if len(agent.memory) > batch_size:
+                    agent.replay(batch_size)
+                break
 
         agent.epsilon_decay()
         if e % test_interval == 0 and storing:
@@ -244,4 +241,3 @@ if __name__ == "__main__":
             save_data = results_over_time[:e]
             np.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + '.npy', save_data)
             store_results(save_data)
-    store_results(results_over_time)
