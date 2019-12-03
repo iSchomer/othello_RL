@@ -1,4 +1,4 @@
-from final_project.othello4_env import OthelloGame
+from othello4_env import OthelloGame
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -123,7 +123,7 @@ def store_results(data):
 if __name__ == "__main__":
     episodes = 20000
     storing = True
-    loading = True
+    loading = False
     testing = False  # keep this at False unless loading is True
     alpha = .01
 
@@ -142,9 +142,9 @@ if __name__ == "__main__":
     # FILENAME CONVENTION
     #      'saves/NN-type_opponent_num-episodes'
     if storing:
-        save_filename = 'final_project/saves/othello4_d20(lr)_rand_60000'
+        save_filename = './saves/othello4_d20(lr)_rand_60000'
     if loading:
-        load_filename = 'final_project/saves/othello4_d20(lr)_rand_40000(12-03--11)'
+        load_filename = './saves/othello4_d20(lr)_rand_40000(12-03--11)'
         agent.load(load_filename + ".h5")
 
     if loading:
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
                 for move in range(100):
                     action = agent.get_action(state, testing)
-                    reward, next_state, valid_moves, terminal = game.step(action)
+                    reward, next_state, valid_moves, terminal, result = game.step(action)
                     if agent.model_type == 'dense':
                         next_state = np.reshape(next_state, [1, 16])
                     else:
@@ -190,7 +190,6 @@ if __name__ == "__main__":
                     if terminal:
                         # terminal reward is 0 for loss, 0.5 for tie, 1 for win
                         # use this as an indexing code to get the result
-                        result = outcomes[int(reward * 2)]
                         if result == 'Win':
                             n = 1
                         else:
@@ -212,7 +211,7 @@ if __name__ == "__main__":
 
         for move in range(100):  # max amount of moves in an episode
             action = agent.get_action(state, testing)
-            reward, next_state, valid_moves, terminal = game.step(action)
+            reward, next_state, valid_moves, terminal, result = game.step(action)
             if agent.model_type == 'dense':
                 next_state = np.reshape(next_state, [1, 16])
             else:
@@ -222,7 +221,6 @@ if __name__ == "__main__":
             if terminal:
                 # terminal reward is 0 for loss, 0.5 for tie, 1 for win
                 # use this as an indexing code to get the result
-                result = outcomes[int(reward * 2)]
                 if result == 'Win':
                     n = 1
                 else:
