@@ -198,14 +198,10 @@ class OthelloGame:
         # build the value tables for the opponents
         # make it a 2D list so indexing matches the board
         if self.opponent == 'heur':
-            self.position_value = [100, -25, 10, 5, 5, 10, -25, 100,
-                                   -25, -25, 2, 2, 2, 2, -25, -25,
-                                   10, 2, 5, 1, 1, 5, 2, 10,
-                                   5, 2, 1, 2, 2, 1, 2, 5,
-                                   5, 2, 1, 2, 2, 1, 2, 5,
-                                   10, 2, 5, 1, 1, 5, 2, 10,
-                                   -25, -25, 2, 2, 2, 2, -25, -25,
-                                   100, -25, 10, 5, 5, 10, -25, 100]
+            self.position_value = [100, -25, -25, 100,
+                                   -25, -25, -25, -25,
+                                   -25, -25, -25, -25,
+                                   100, -25, -25, 100]
         elif self.opponent == 'bench':
             self.position_value = [80, -26, 24, -1, -5, 28, -18, 76,
                                    -23, -39, -18, -9, -6, -8, -39, -1,
@@ -338,16 +334,16 @@ class OthelloGame:
                 # options 1 and 2
                 if not self.board.get_valid_moves(self.player_tile):
                     # option 1 - game over
-                    reward = self.calculate_final_reward()
+                    reward, result = self.calculate_final_reward()
                     terminal = True
                     if self.stepper:
                         self.board.draw()
-                    return reward, self.board.list_to_array(), [],  terminal
+                    return reward, self.board.list_to_array(), [],  terminal, result
                 else:
                     # option 2 - return current state so agent can go again
                     if self.stepper:
                         self.board.draw()
-                    return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal
+                    return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal, ''
             else:
                 # options 3 and 4
                 computer_action = self.get_computer_move()
@@ -364,22 +360,25 @@ class OthelloGame:
         #     reward = self.calculate_final_reward()
         if self.stepper:
             self.board.draw()
-        return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal
+        return reward, self.board.list_to_array(), self.board.get_valid_moves(self.player_tile), terminal, ''
 
     def calculate_final_reward(self):
         scores = self.board.get_score()
         self.player_score, self.computer_score = scores[self.player_tile], scores[self.computer_tile]
         if self.player_score > self.computer_score:
             reward = 1
+            result = 'Win'
             if self.stepper:
                 print("The agent wins a game!! {} to {}".format(self.player_score, self.computer_score))
         elif self.player_score < self.computer_score:
-            reward = 0
+            reward = -1
+            result = 'Loss'
             if self.stepper:
                 print("The agent loses to the computer... {} to {}".format(self.player_score, self.computer_score))
         else:
             reward = 0.5
-        return reward
+            result = 'Tie'
+        return reward, result
 
     def run_interactive(self):
         print('Welcome to Othello!')
@@ -459,5 +458,5 @@ class OthelloGame:
 
 # to test the environment
 if __name__ == '__main__':
-    game = OthelloGame(opponent='rand', interactive=True, show_steps=False)
+    game = OthelloGame(opponent='heur', interactive=True, show_steps=False)
     game.start()
