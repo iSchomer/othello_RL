@@ -19,10 +19,10 @@ class OthelloAgent:
         self.memory = deque(maxlen=2000)
         self.gamma = 1.0  # episodic --> no discount
         self.episodes = ep
-        self.epsilon = 0.25
-        self.epsilon_min = 0.1
+        self.epsilon = 0.15
+        self.epsilon_min = 0.075
         self.epsilon_step = (self.epsilon - self.epsilon_min) / self.episodes
-        self.learning_rate = 0.1
+        self.learning_rate = 0.005
         self.model_type = model_type
         self.model = self.build_model()
 
@@ -120,7 +120,7 @@ def store_results(data):
 if __name__ == "__main__":
     episodes = 20000
     storing = True
-    loading = False
+    loading = True
     testing = False  # keep this at False unless loading is True
     alpha = .01
 
@@ -139,21 +139,22 @@ if __name__ == "__main__":
     # FILENAME CONVENTION
     #      'saves/NN-type_opponent_num-episodes'
     if storing:
-        save_filename = 'final_project/saves/othello4_d20_rand_20000'
+        save_filename = 'final_project/saves/othello4_d20(lr)_rand_60000'
     if loading:
-        load_filename = 'final_project/saves/othello4_basic-sequential_rand_2000'
+        load_filename = 'final_project/saves/othello4_d20(lr)_rand_40000(12-03--11)'
         agent.load(load_filename + ".h5")
 
-    if loading and not testing:
+    if loading:
         prev_data = np.load(load_filename + '.npy')
         avg_result = prev_data[-1]
         episode_start = len(prev_data) + 1
+        print("Starting from load at episode {}".format(episode_start))
         results_over_time = np.append(prev_data, np.zeros(episodes))
+        test_result = np.load(load_filename + '_test.npy').tolist()
     else:
         avg_result = 0
         results_over_time = np.zeros(episodes)
         episode_start = 1
-
         test_result = []
 
     # time it
@@ -251,4 +252,5 @@ if __name__ == "__main__":
             # save only the length of the array that we stopped at
             save_data = results_over_time[:e]
             np.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + '.npy', save_data)
+            np.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + '_test.npy', test_result)
             store_results(save_data)
