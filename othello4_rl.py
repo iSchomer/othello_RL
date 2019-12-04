@@ -108,14 +108,14 @@ def store_results(data):
     print('Runtime: {}hr.'.format((t_stop - t_start) / 3600.))
     # create and save a figure
     if storing:
-        t1 = [i for i in range(len(data))]
+        t = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t1, data, zorder=1)
+        ax.plot(t, data, c='cornflowerblue', zorder=1)
         test_points = [0] + [test_interval * (i + 1) for i in range(int(len(data) / test_interval))]
-        ax.scatter(test_points, test_result, marker='o', c='orange', zorder=2)
+        ax.scatter(test_points, test_result, marker='o', c='darkorange', zorder=2)
         ax.set_xlabel("Episode")
-        ax.set_title("Percent Wins During Training")
+        ax.set_title("Running-Average Win/Loss Ratio Against {}".format(game.opponent.title()))
         plt.savefig(save_filename + datetime.now().strftime("(%m-%d--%H-%M)") + '_training' + '.png')
         # plt.show()
 
@@ -142,9 +142,9 @@ if __name__ == "__main__":
     # FILENAME CONVENTION
     #      'saves/NN-type_opponent_num-episodes'
     if storing:
-        save_filename = './saves/othello4_d20(lr)_rand_60000'
+        save_filename = 'final_project/saves/repeat_d10(exp-lr)_bench_40000'
     if loading:
-        load_filename = './saves/othello4_d20(lr)_rand_40000(12-03--11)'
+        load_filename = 'final_project/saves/othello4_d10(exp-lr)_rand_40000(12-04--10)'
         agent.load(load_filename + ".h5")
 
     if loading:
@@ -196,7 +196,7 @@ if __name__ == "__main__":
                             n = 0
                         test_result[-1] += (1 / (test_ep % test_interval + 1)) * (n - test_result[-1])
                         if test_ep % 100 == 0 and test_ep > 0:
-                            print('testing' + "episode {}: {} moves, Result: {}".format(test_ep, move, result))
+                            print('testing' + "episode {}: {} moves, Result: {}".format(test_ep, move+1, result))
                             print("Average win/loss ratio: ", test_result[-1])
                         break
             testing = False
@@ -231,7 +231,7 @@ if __name__ == "__main__":
 
                 if e % 100 == 0:
                     print("episode {}: {} moves, Result: {}, e: {:.2}, n: {:.3}"
-                          .format(e, move, result, agent.epsilon, agent.lr))
+                          .format(e, move+1, result, agent.epsilon, agent.lr))
                     print("Average win/loss ratio: ", avg_result)
 
                 # decrease learning rate 10 times over the course of training
