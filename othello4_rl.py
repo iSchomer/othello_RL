@@ -111,7 +111,7 @@ def store_results(data):
         t = [i for i in range(len(data))]
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(t, data, c='cornflowerblue', zorder=1)
+        ax.plot(t, data, c='cornflowerblue', alpha=0.8, zorder=1)
         test_points = [0] + [test_interval * (i + 1) for i in range(int(len(data) / test_interval))]
         ax.scatter(test_points, test_result, marker='o', c='darkorange', zorder=2)
         ax.set_xlabel("Episode")
