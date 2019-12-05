@@ -5,6 +5,7 @@ from collections import deque
 from tensorflow.keras import layers
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.initializers import RandomUniform
+from tensorflow.keras.utils import to_categorical
 import random
 from time import process_time
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ from datetime import datetime
 
 
 class OthelloAgent:
-    def __init__(self, ep, model_type='dense'):
+    def __init__(self, ep, model_type='dense', onehot=False):
         self.state_size = 16
         self.action_size = 16
         self.tile = 'X'
@@ -26,6 +27,7 @@ class OthelloAgent:
         self.lr_min = 0.01
         self.lr_decay = 0.75
         self.model_type = model_type
+        self.onehot = onehot
         self.model = self.build_model()
 
     def build_model(self):
@@ -33,23 +35,39 @@ class OthelloAgent:
         if self.model_type == 'dense':
             # Feed-forward NN
             model = tf.keras.Sequential()
-            model.add(layers.Dense(10, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            if self.onehot:
+                model.add(layers.Dense(20, input_dim=(self.state_size * 3), activation='sigmoid',
+                                       kernel_initializer=init))
+            else:
+                model.add(layers.Dense(10, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
             model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
             model.compile(loss='mse', optimizer=SGD(lr=self.lr))
         else:
             # convolutional neural network
             model = tf.keras.Sequential()
             # convolve to a 6x6 grid
-            model.add(layers.Conv2D(16, kernel_size=3, activation='relu', input_shape=(4, 4, 1)))
+            model.add(layers.Conv2D(32, kernel_size=3, activation='relu', input_shape=(4, 4, 1)))
             model.add(layers.Flatten())
             # add a dense layer
-            model.add(layers.Dense(20, input_dim=self.state_size, activation='sigmoid', kernel_initializer=init))
+            model.add(layers.Dense(10, activation='sigmoid', kernel_initializer=init))
             model.add(layers.Dense(16, activation='sigmoid', kernel_initializer=init))
             model.compile(loss='mse', optimizer=Adam())
         return model
 
     def remember(self, st, act, rw, next_st, vld_moves, done):
         self.memory.append((st, act, rw, next_st, vld_moves, done))
+
+    def reshape(self, s):
+        if self.model_type == 'dense':
+            if self.onehot:
+                s = s.reshape(16)
+                s = to_categorical(s, num_classes=3)  # one-hot encode
+                s = s.reshape(1, self.state_size * 3)
+            else:
+                s = np.reshape(s, [1, 16])
+        else:
+            s = s.reshape(1, s.shape[0], s.shape[1], 1)
+        return s
 
     def get_action(self, st, test):
         valid_actions = game.board.get_valid_moves(self.tile)
@@ -174,18 +192,12 @@ if __name__ == "__main__":
                 game.reset()
                 game.start()
                 state = game.get_state()  # 8x8 numpy array
-                if agent.model_type == 'dense':
-                    state = np.reshape(state, [1, 16])
-                else:
-                    state = state.reshape(1, state.shape[0], state.shape[1], 1)
+                state = agent.reshape(state)
 
                 for move in range(100):
                     action = agent.get_action(state, testing)
                     reward, next_state, valid_moves, terminal, result = game.step(action)
-                    if agent.model_type == 'dense':
-                        next_state = np.reshape(next_state, [1, 16])
-                    else:
-                        next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
+                    next_state = agent.reshape(next_state)
                     state = next_state
                     if terminal:
                         # terminal reward is 0 for loss, 0.5 for tie, 1 for win
@@ -195,7 +207,7 @@ if __name__ == "__main__":
                         else:
                             n = 0
                         test_result[-1] += (1 / (test_ep % test_interval + 1)) * (n - test_result[-1])
-                        if test_ep % 100 == 0 and test_ep > 0:
+                        if test_ep == test_length - 1:
                             print('testing' + "episode {}: {} moves, Result: {}".format(test_ep, move+1, result))
                             print("Average win/loss ratio: ", test_result[-1])
                         break
@@ -204,18 +216,12 @@ if __name__ == "__main__":
         game.reset()
         game.start()
         state = game.get_state()  # 8x8 numpy array
-        if agent.model_type == 'dense':
-            state = np.reshape(state, [1, 16])
-        else:
-            state = state.reshape(1, state.shape[0], state.shape[1], 1)
+        state = agent.reshape(state)
 
         for move in range(100):  # max amount of moves in an episode
             action = agent.get_action(state, testing)
             reward, next_state, valid_moves, terminal, result = game.step(action)
-            if agent.model_type == 'dense':
-                next_state = np.reshape(next_state, [1, 16])
-            else:
-                next_state = next_state.reshape(1, next_state.shape[0], next_state.shape[1], 1)
+            next_state = agent.reshape(next_state)
             agent.remember(state, action, reward, next_state, valid_moves, terminal)
             state = next_state
             if terminal:
@@ -246,7 +252,7 @@ if __name__ == "__main__":
                 break
 
         agent.epsilon_decay()
-        if e % (2*test_interval) == 0 and storing:
+        if e % (5*test_interval) == 0 and storing:
             # save name as 'saves/model-type_training-opponent_num-episodes.h5'
             agent.save(save_filename + datetime.now().strftime("(%m-%d--%H)") + ".h5")
 
